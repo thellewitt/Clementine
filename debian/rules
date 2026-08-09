@@ -8,16 +8,11 @@ export DEB_VERSION = $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 
 
 override_dh_auto_configure:
 	dh_auto_configure -- \
-	    -DBUNDLE_PROJECTM_PRESETS=OFF \
 	    -DCMAKE_BUILD_TYPE=Release \
 	    -DCMAKE_PREFIX_PATH=/usr/local \
 	    -DCMAKE_INSTALL_PREFIX=/usr/local \
-	    -DVISUALISATIONS=ON \
 	    -DHAVE_VISUALISATIONS=ON \
 	    -DProtobuf_PROTOC_EXECUTABLE=/usr/bin/protoc \
-	    -DPROJECTM_INCLUDE_DIR=/usr/local/include/projectM-4 \
-	    -DPROJECTM_LIBRARY=/usr/local/lib/libprojectM-4.so \
-	    -DPROJECTM_PLAYLIST=/usr/local/lib/libprojectM-4-playlist.so
 
 override_dh_shlibdeps:
 	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
