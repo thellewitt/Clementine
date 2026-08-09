@@ -823,60 +823,95 @@ QString GstEnginePipeline::GetAudioFormat(GstCaps* caps) {
 void GstEnginePipeline::NewPadCallback(GstElement*, GstPad* pad,
                                        gpointer self) {
   GstEnginePipeline* instance = reinterpret_cast<GstEnginePipeline*>(self);
-  GstPad* const audiopad =
-      gst_element_get_static_pad(instance->audiobin_, "sink");
 
   qLog(Debug) << "Decoder bin pad added:" << GST_PAD_NAME(pad);
 
-  // Make sure the audio bin isn't already linked to something.
-  if (GST_PAD_IS_LINKED(audiopad)) {
-    qLog(Warning) << instance->id()
-                  << "audiopad is already linked, unlinking old pad";
-    gst_pad_unlink(audiopad, GST_PAD_PEER(audiopad));
-  }
-
-  // See what the decoder bin wants to output.
+  // 1. RESTORED: Original caps retrieval
   GstCaps* caps = gst_pad_get_current_caps(pad);
-  if (caps) {
-    gchar* caps_str = gst_caps_to_string(caps);
-    qLog(Debug) << "Initial decoder caps:" << caps_str;
-    g_free(caps_str);
+  if (!caps) {
+    caps = gst_pad_query_caps(pad, nullptr);
+  }
 
-    if (instance->format_ != GstEngine::kOutFormatDetect) {
-      // Caps were set when the pipeline was constructed.
-    } else if (instance->pipeline_is_initialised_) {
-      qLog(Debug)
-          << "Ignoring native format since pipeline is already running.";
-    } else {
-      QString fmt = GetAudioFormat(caps);
+  if (!caps || gst_caps_is_empty(caps)) {
+    if (caps) gst_caps_unref(caps);
+    return;
+  }
 
-      // The output branch only handles F32LE and S16LE. If the source is S16LE,
-      // then use that throughout the pipeline. Otherwise, use F32LE.
-      if (fmt == GstEngine::kOutFormatS16LE) {
-        instance->SetOutputFormat(GstEngine::kOutFormatS16LE);
-      } else {
-        instance->SetOutputFormat(GstEngine::kOutFormatF32LE);
-      }
+  GstStructure* str = gst_caps_get_structure(caps, 0);
+  const gchar* type = gst_structure_get_name(str);
+
+  // 2. THE DUMPSTER: Safely discard non-audio pads with diagnostics
+  if (!g_str_has_prefix(type, "audio/")) {
+    qLog(Debug) << "Non-audio pad detected with caps:" << type 
+                << "- Routing to fakesink.";
+    
+    GstElement* fakesink = gst_element_factory_make("fakesink", nullptr);
+    g_object_set(fakesink, "sync", FALSE, "async", FALSE, nullptr);
+    gst_bin_add(GST_BIN(instance->pipeline_), fakesink);
+    gst_element_sync_state_with_parent(fakesink);
+
+    GstPad* dummy_sinkpad = gst_element_get_static_pad(fakesink, "sink");
+    GstPadLinkReturn ret = gst_pad_link(pad, dummy_sinkpad);
+
+    if (ret != GST_PAD_LINK_OK && ret != GST_PAD_LINK_WAS_LINKED) {
+      qLog(Warning) << instance->id()
+                    << "Failed to link non-audio pad to fakesink:" << ret;
     }
+
+    gst_object_unref(dummy_sinkpad);
     gst_caps_unref(caps);
+    return; 
   }
 
-  // Link decodebin's sink pad to audiobin's src pad.
-  if (gst_pad_link(pad, audiopad) != GST_PAD_LINK_OK) {
-    qLog(Error) << "Failed to link decoder to audio bin.";
+  // 3. RESTORED: Guarded audio format detection
+  if (instance->format_ != GstEngine::kOutFormatDetect) {
+    // Caps were set when the pipeline was constructed.
+  } else if (instance->pipeline_is_initialised_) {
+    qLog(Debug)
+        << "Ignoring native format since pipeline is already running.";
+  } else {
+    QString fmt = GetAudioFormat(caps);
+
+    if (fmt == GstEngine::kOutFormatS16LE) {
+      instance->SetOutputFormat(GstEngine::kOutFormatS16LE);
+    } else {
+      instance->SetOutputFormat(GstEngine::kOutFormatF32LE);
+    }
   }
+  
+  gst_caps_unref(caps);
+
+  // 4. Continue with original audio linking
+  GstPad* const audiopad = gst_element_get_static_pad(instance->audiobin_, "sink");
+  if (!audiopad) {
+    qLog(Warning) << instance->id() << "Could not obtain audiobin_ sink pad";
+    return;
+  }
+
+  if (GST_PAD_IS_LINKED(audiopad)) {
+    GstPad* peer = gst_pad_get_peer(audiopad);
+    if (peer) {
+      if (peer == pad) {
+        gst_object_unref(peer);
+        gst_object_unref(audiopad);
+        return;
+      }
+      qLog(Warning) << instance->id()
+                    << "audiopad is already linked, unlinking old peer pad";
+      gst_pad_unlink(peer, audiopad);
+      gst_object_unref(peer);
+    }
+  }
+
+  GstPadLinkReturn ret = gst_pad_link(pad, audiopad);
   gst_object_unref(audiopad);
 
-  // Offset the timestamps on all the buffers coming out of the decodebin so
-  // they line up exactly with the end of the last buffer from the old
-  // decodebin.
-  // "Running time" is the time since the last flushing seek.
-  GstClockTime running_time = gst_segment_to_running_time(
-      &instance->last_decodebin_segment_, GST_FORMAT_TIME,
-      instance->last_decodebin_segment_.position);
-  gst_pad_set_offset(pad, running_time);
+  if (ret != GST_PAD_LINK_OK && ret != GST_PAD_LINK_WAS_LINKED) {
+    qLog(Warning) << instance->id() << "Failed to link audio pad:" << ret;
+    return;
+  }
 
-  // Add a probe to the pad so we can update last_decodebin_segment_.
+  // 5. Attach tracking probe
   gst_pad_add_probe(
       pad,
       static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER |
