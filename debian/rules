@@ -8,11 +8,13 @@ export DEB_VERSION = $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 
 
 override_dh_auto_configure:
 	dh_auto_configure -- \
-	    -DCMAKE_BUILD_TYPE=Release \
+	    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  		-DCMAKE_C_FLAGS="-march=native -O2 -pipe -fgraphite-identity -fipa-pta -fmerge-all-constants -fwrapv -fno-strict-aliasing -fstack-protector-strong -g -fno-omit-frame-pointer" \
+  		-DCMAKE_CXX_FLAGS="-march=native -O2 -pipe -fgraphite-identity -fipa-pta -fmerge-all-constants -fwrapv -fno-strict-aliasing -fstack-protector-strong -g -fno-omit-frame-pointer" \
 	    -DCMAKE_PREFIX_PATH=/usr/local \
 	    -DCMAKE_INSTALL_PREFIX=/usr/local \
 	    -DHAVE_VISUALISATIONS=ON \
-	    -DProtobuf_PROTOC_EXECUTABLE=/usr/bin/protoc \
+	    -DProtobuf_PROTOC_EXECUTABLE=/usr/bin/protoc
 
 override_dh_shlibdeps:
 	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
