@@ -1,0 +1,6 @@
+clementine (${CLEMENTINE_VERSION_DEB}~${DEB_DIST}) ${DEB_DIST}; urgency=medium
+
+  * Version ${CLEMENTINE_VERSION_DISPLAY}
+
+ -- Triala Boomdeay <bradfordspencer03@gmail.com>  ${DEB_DATE}
+ 
