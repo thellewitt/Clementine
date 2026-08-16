@@ -182,7 +182,7 @@
       <item>
        <widget class="QLabel" name="label_3">
         <property name="text">
-         <string>Clementine can synchronize your subscription list with your other computers and podcast applications.  &lt;a href=&quot;https://gpodder.net/register/&quot;&gt;Create an account&lt;/a&gt;.</string>
+         <string>Clementine can synchronize your subscription list with your other computers and podcast applications.  &lt;a href=&quot;%1&quot;&gt;Create an account&lt;/a&gt;.</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>

@@ -39,6 +39,13 @@ PodcastSettingsPage::PodcastSettingsPage(SettingsDialog* dialog)
   ui_->setupUi(this);
   setWindowIcon(IconLoader::Load("podcast", IconLoader::Provider));
 
+  // Inject URL for "Create an account" link (gettext-safe)
+  const QString register_url = "https://gpodder.net/register/";
+  ui_->label_3->setText(
+      tr("Clementine can synchronize your subscription list with your other computers and podcast applications. "
+         "<a href=\"%1\">Create an account</a>.").arg(register_url)
+  );
+
   connect(ui_->login, SIGNAL(clicked()), SLOT(LoginClicked()));
   connect(ui_->login_state, SIGNAL(LoginClicked()), SLOT(LoginClicked()));
   connect(ui_->login_state, SIGNAL(LogoutClicked()), SLOT(LogoutClicked()));
