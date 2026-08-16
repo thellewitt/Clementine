@@ -625,12 +625,14 @@ bool Database::IntegrityCheck(QSqlDatabase db) {
       break;
     } else {
       if (!error_reported) {
+        const QString url =
+          "https://github.com/clementine-player/Clementine/wiki/Database-Corruption";
+
         app_->AddError(
-            tr("Database corruption detected. Please read "
-               "https://github.com/clementine-player/Clementine/wiki/"
-               "Database-Corruption "
-               "for instructions on how to recover your database"));
+          tr("Database corruption detected. Please read %1 for instructions on how to recover your database")
+              .arg(url));
       }
+
       app_->AddError("Database: " + message);
       error_reported = true;
     }
