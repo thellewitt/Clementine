@@ -87,8 +87,8 @@ void MessageReply<MessageType>::SetReply(const MessageType& message) {
   success_ = true;
 
   qLog(Debug) << "Releasing ID" << id() << "(finished)";
-  semaphore_.release();
   emit Finished(success_);
+  semaphore_.release();
 }
 
 #endif  // MESSAGEREPLY_H
