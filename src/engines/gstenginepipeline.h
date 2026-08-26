@@ -117,6 +117,7 @@ class GstEnginePipeline : public GstPipelineBase {
   void BufferingStarted();
   void BufferingProgress(int percent);
   void BufferingFinished();
+  void TrackChanged(const QUrl& new_track_url);
 
  protected:
   void timerEvent(QTimerEvent*);
@@ -237,6 +238,11 @@ class GstEnginePipeline : public GstPipelineBase {
   // Set temporarily when moving to the next contiguous section in a multi-part
   // file.
   bool ignore_next_seek_;
+
+  // Gapless transition state variables
+  bool is_transitioning_;
+  qint64 stored_beginning_nanosec_;
+  qint64 stored_end_nanosec_;
 
   // Set temporarily when switching out the decode bin, so metadata doesn't
   // get sent while the Player still thinks it's playing the last song

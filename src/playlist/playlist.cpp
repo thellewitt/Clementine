@@ -651,6 +651,18 @@ int Playlist::dynamic_history_length() const {
 
 void Playlist::set_current_row(int i, bool is_stopping) {
   QModelIndex old_current_item_index = current_item_index_;
+
+  qLog(Info) << "Playlist::set_current_row:"
+             << " old_row=" << old_current_item_index.row()
+             << " new_row=" << i
+             << " old_url="
+             << (old_current_item_index.isValid()
+                     ? item_at(old_current_item_index.row())->Url()
+                     : QUrl())
+             << " new_url="
+             << (i >= 0 && i < items_.count() ? item_at(i)->Url() : QUrl())
+             << " is_stopping=" << is_stopping;
+
   ClearStreamMetadata();
 
   current_item_index_ = QPersistentModelIndex(index(i, 0, QModelIndex()));

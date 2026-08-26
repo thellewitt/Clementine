@@ -85,6 +85,8 @@ void Player::Init() {
           SLOT(EngineStateChanged(Engine::State)));
   connect(engine_.get(), SIGNAL(TrackAboutToEnd()), SLOT(TrackAboutToEnd()));
   connect(engine_.get(), SIGNAL(TrackEnded()), SLOT(TrackEnded()));
+  connect(engine_.get(), SIGNAL(TrackChanged(QUrl)),
+        SLOT(GaplessTrackChanged(QUrl)));
   connect(engine_.get(), SIGNAL(MetaData(Engine::SimpleMetaBundle)),
           SLOT(EngineMetadataReceived(Engine::SimpleMetaBundle)));
 
@@ -183,6 +185,7 @@ void Player::NextAlbum() {
 
 void Player::NextInternal(Engine::TrackChangeFlags change,
                           NextTrackOrAlbumSelected NextTrackOrAlbum) {
+
   if (HandleStopAfter()) return;
 
   if (app_->playlist_manager()->active()->current_item()) {
@@ -355,6 +358,22 @@ void Player::PlayPause() {
   }
 }
 
+void Player::GaplessTrackChanged(const QUrl& new_track_url) {
+  Playlist* playlist = app_->playlist_manager()->active();
+
+  for (int row = 0; row < playlist->rowCount(); ++row) {
+    if (playlist->item_at(row)->Metadata().url() == new_track_url) {
+      playlist->set_current_row(row);
+      current_item_ = playlist->current_item();
+
+      return;
+    }
+  }
+
+  qLog(Warning) << "GaplessTrackChanged: could not find"
+                << new_track_url;
+}
+
 void Player::RestartOrPrevious() {
   if (engine_->position_nanosec() < 8 * kNsecPerSec) return Previous();
 
@@ -474,6 +493,7 @@ void Player::PlayAt(int index, Engine::TrackChangeFlags change,
   }
 
   current_item_ = app_->playlist_manager()->active()->current_item();
+
   const QUrl url = current_item_->Url();
 
   if (url_handlers_.contains(url.scheme())) {
@@ -612,20 +632,28 @@ void Player::TrackAboutToEnd() {
   // scrobble) the next item in the playlist if it's just going to be stopped
   // again immediately after.
   if (app_->playlist_manager()->active()->current_item()) {
-    const QUrl url = app_->playlist_manager()->active()->current_item()->Url();
+    const QUrl url =
+        app_->playlist_manager()->active()->current_item()->Url();
     if (url_handlers_.contains(url.scheme())) {
       url_handlers_[url.scheme()]->TrackAboutToEnd();
       return;
     }
   }
 
-  const bool has_next_row =
-      app_->playlist_manager()->active()->next_row() != -1;
+  const int first_next_row =
+      app_->playlist_manager()->active()->next_row();
+  const bool has_next_row = first_next_row != -1;
+
   PlaylistItemPtr next_item;
 
   if (has_next_row) {
-    next_item = app_->playlist_manager()->active()->item_at(
-        app_->playlist_manager()->active()->next_row());
+    const int second_next_row =
+        app_->playlist_manager()->active()->next_row();
+
+    if (second_next_row != -1) {
+      next_item =
+          app_->playlist_manager()->active()->item_at(second_next_row);
+    }
   }
 
   if (engine_->is_autocrossfade_enabled()) {
@@ -646,16 +674,18 @@ void Player::TrackAboutToEnd() {
     }
   }
 
-  // Crossfade is off, so start preloading the next track so we don't get a
-  // gap between songs.
+  // Crossfade is off, so start preloading the next track so we don't get a gap
+  // between songs.
   if (!has_next_row || !next_item) return;
 
   MediaPlaybackRequest req(next_item->Url());
 
   // Get the actual track URL rather than the stream URL.
-  UrlHandler* handler = url_handlers_.value(req.RequestUrl().scheme(), nullptr);
+  UrlHandler* handler =
+      url_handlers_.value(req.RequestUrl().scheme(), nullptr);
   if (handler != nullptr) {
-    UrlHandler::LoadResult result = handler->LoadNext(req.RequestUrl());
+    UrlHandler::LoadResult result =
+        handler->LoadNext(req.RequestUrl());
     switch (result.type_) {
       case UrlHandler::LoadResult::NoMoreTracks:
       case UrlHandler::LoadResult::Error:
@@ -670,6 +700,7 @@ void Player::TrackAboutToEnd() {
         break;
     }
   }
+
   engine_->StartPreloading(req, next_item->Metadata().has_cue(),
                            next_item->Metadata().beginning_nanosec(),
                            next_item->Metadata().end_nanosec());
@@ -713,7 +744,6 @@ void Player::RegisterUrlHandler(UrlHandler* handler) {
     return;
   }
 
-  qLog(Info) << "Registered URL handler for" << scheme;
   url_handlers_.insert(scheme, handler);
   connect(handler, SIGNAL(destroyed(QObject*)),
           SLOT(UrlHandlerDestroyed(QObject*)));
@@ -729,7 +759,6 @@ void Player::UnregisterUrlHandler(UrlHandler* handler) {
     return;
   }
 
-  qLog(Info) << "Unregistered URL handler for" << scheme;
   url_handlers_.remove(scheme);
   disconnect(handler, SIGNAL(destroyed(QObject*)), this,
              SLOT(UrlHandlerDestroyed(QObject*)));

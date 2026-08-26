@@ -204,8 +204,6 @@ void GstEngine::InitialiseGstreamer() {
 
   for (DeviceFinder* finder : device_finders) {
     if (!plugin_names.contains(finder->gstreamer_sink())) {
-      qLog(Info) << "Skipping DeviceFinder for" << finder->gstreamer_sink()
-                 << "known plugins:" << plugin_names;
       delete finder;
       continue;
     }
@@ -390,7 +388,8 @@ void GstEngine::UpdateScope(int chunk_length) {
 
 void GstEngine::StartPreloading(const MediaPlaybackRequest& req,
                                 bool force_stop_at_end,
-                                qint64 beginning_nanosec, qint64 end_nanosec) {
+                                qint64 beginning_nanosec,
+                                qint64 end_nanosec) {
   EnsureInitialised();
 
   // No crossfading, so we can just queue the new URL in the existing
@@ -418,10 +417,11 @@ bool GstEngine::Load(const MediaPlaybackRequest& req,
       !crossfade_same_album_)
     crossfade = false;
 
-  if (!crossfade && current_pipeline_ && current_pipeline_->url() == req.url_ &&
+  if (!crossfade && current_pipeline_ &&
+      current_pipeline_->url() == req.url_ &&
       change & Engine::Auto) {
-    // We're not crossfading, and the pipeline is already playing the URI we
-    // want, so just do nothing.
+    // Pipeline is already playing this URI via gapless transition.
+    // Engine::Base::Load above has refreshed stored offsets for GstEngine.
     return true;
   }
 
@@ -504,7 +504,6 @@ void GstEngine::PlayDone(QFuture<GstStateChangeReturn> future,
     // Failure, but we got a redirection URL - try loading that instead
     QUrl redirect_url = current_pipeline_->redirect_url();
     if (!redirect_url.isEmpty() && redirect_url != current_pipeline_->url()) {
-      qLog(Info) << "Redirecting to" << redirect_url;
       // Keep original request intact so it can be used for notification.
       MediaPlaybackRequest new_req = playback_req_;
       new_req.url_ = redirect_url;
@@ -634,7 +633,7 @@ void GstEngine::Seek(quint64 offset_nanosec) {
 
   if (!seek_timer_->isActive()) {
     SeekNow();
-    seek_timer_->start();  // Stop us from seeking again for a little while
+    seek_timer_->start();
   }
 }
 
@@ -697,11 +696,10 @@ void GstEngine::timerEvent(QTimerEvent* e) {
     const qint64 remaining = current_length - current_position;
 
     const qint64 fudge =
-        kTimerIntervalNanosec + 100 * kNsecPerMsec;  // Mmm fudge
+        kTimerIntervalNanosec + 100 * kNsecPerMsec;  // Packing fudge
     const qint64 gap = buffer_duration_nanosec_ +
                        (autocrossfade_enabled_ ? fadeout_duration_nanosec_
                                                : kPreloadGapNanosec);
-
     // only if we know the length of the current stream...
     if (current_length > 0) {
       // emit TrackAboutToEnd when we're a few seconds away from finishing
@@ -755,10 +753,16 @@ void GstEngine::HandlePipelineError(int pipeline_id, const QString& message,
 void GstEngine::EndOfStreamReached(int pipeline_id, bool has_next_track) {
   if (!IsCurrentPipeline(pipeline_id)) return;
 
+  if (gapless_track_changed_pending_ && has_next_track) {
+    gapless_track_changed_pending_ = false;
+    return;
+  }
+
   if (!has_next_track) {
     current_pipeline_.reset();
     BufferingFinished();
   }
+
   emit TrackEnded();
 }
 
@@ -834,6 +838,8 @@ shared_ptr<GstEnginePipeline> GstEngine::CreatePipeline() {
 
   connect(ret.get(), SIGNAL(EndOfStreamReached(int, bool)),
           SLOT(EndOfStreamReached(int, bool)));
+  connect(ret.get(), SIGNAL(TrackChanged(QUrl)),
+        this, SLOT(PipelineTrackChanged(QUrl)));
   connect(ret.get(), SIGNAL(Error(int, QString, int, int)),
           SLOT(HandlePipelineError(int, QString, int, int)));
   connect(ret.get(), SIGNAL(MetadataFound(int, Engine::SimpleMetaBundle)),
@@ -994,4 +1000,9 @@ GstEngine::OutputDetailsList GstEngine::GetOutputsList() const {
 
 void GstEngine::NewDebugConsole(Console* console) {
   console->AddPage(new GstEngineDebug(this), "GstEngine");
+}
+
+void GstEngine::PipelineTrackChanged(const QUrl& new_track_url) {
+  gapless_track_changed_pending_ = true;
+  emit TrackChanged(new_track_url);
 }

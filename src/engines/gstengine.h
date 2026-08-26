@@ -145,6 +145,7 @@ class GstEngine : public Engine::Base, public BufferConsumer {
 
  private slots:
   void EndOfStreamReached(int pipeline_id, bool has_next_track);
+  void PipelineTrackChanged(const QUrl& new_track_url);
   void HandlePipelineError(int pipeline_id, const QString& message, int domain,
                            int error_code);
   void NewMetaData(int pipeline_id, const Engine::SimpleMetaBundle& bundle);
@@ -206,6 +207,7 @@ class GstEngine : public Engine::Base, public BufferConsumer {
   std::shared_ptr<GstEnginePipeline> fadeout_pipeline_;
   std::shared_ptr<GstEnginePipeline> fadeout_pause_pipeline_;
   QUrl preloaded_url_;
+  bool gapless_track_changed_pending_ = false;
 
   QList<BufferConsumer*> buffer_consumers_;
 
