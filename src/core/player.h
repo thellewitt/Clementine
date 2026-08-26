@@ -197,11 +197,11 @@ class Player : public PlayerInterface {
 
   void UrlHandlerDestroyed(QObject* object);
   void HandleLoadResult(const UrlHandler::LoadResult& result);
+  void GaplessTrackChanged(const QUrl& new_track_url);
 
  private:
   // Returns true if we were supposed to stop after this track.
   bool HandleStopAfter();
-
   void HandleInvalidItem(const QUrl& url);
 
  private:

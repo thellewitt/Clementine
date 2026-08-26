@@ -148,6 +148,7 @@ bool GstEnginePipeline::ReplaceDecodeBin(GstElement* new_bin) {
   segment_start_ = 0;
   segment_start_received_ = false;
   pipeline_is_connected_ = false;
+  last_buffer_offset_ = 0;
   gst_bin_add(GST_BIN(pipeline_), uridecodebin_);
 
   return true;
@@ -504,6 +505,8 @@ bool GstEnginePipeline::InitFromReq(const MediaPlaybackRequest& req,
   }
 #endif
   end_offset_nanosec_ = end_nanosec;
+  stored_beginning_nanosec_ = 0;
+  stored_end_nanosec_ = end_nanosec;
 
   // Decode bin
   if (!ReplaceDecodeBin(url)) return false;
@@ -820,13 +823,13 @@ QString GstEnginePipeline::GetAudioFormat(GstCaps* caps) {
   return "";
 }
 
-void GstEnginePipeline::NewPadCallback(GstElement*, GstPad* pad,
+void GstEnginePipeline::NewPadCallback(GstElement* element, GstPad* pad,
                                        gpointer self) {
   GstEnginePipeline* instance = reinterpret_cast<GstEnginePipeline*>(self);
 
   qLog(Debug) << "Decoder bin pad added:" << GST_PAD_NAME(pad);
 
-  // 1. RESTORED: Original caps retrieval
+  // Original caps retrieval
   GstCaps* caps = gst_pad_get_current_caps(pad);
   if (!caps) {
     caps = gst_pad_query_caps(pad, nullptr);
@@ -840,30 +843,72 @@ void GstEnginePipeline::NewPadCallback(GstElement*, GstPad* pad,
   GstStructure* str = gst_caps_get_structure(caps, 0);
   const gchar* type = gst_structure_get_name(str);
 
-  // 2. THE DUMPSTER: Safely discard non-audio pads with diagnostics
+  // Safely discard non-audio pads with diagnostics
   if (!g_str_has_prefix(type, "audio/")) {
-    qLog(Debug) << "Non-audio pad detected with caps:" << type 
+    qLog(Debug) << "Non-audio pad detected with caps:" << type
                 << "- Routing to fakesink.";
-    
+
+    // Trace the exact hierarchy to ensure we attach to the correct bin
+    qLog(Debug) << "pad-added element:" << GST_ELEMENT_NAME(element);
+
+    GstElement* target_bin = nullptr;
+    GstElement* parent_bin = GST_ELEMENT(gst_element_get_parent(element));
+
+    if (parent_bin) {
+      qLog(Debug) << "element parent:" << GST_ELEMENT_NAME(parent_bin);
+      target_bin = parent_bin;
+    } else {
+      qLog(Warning) << "Could not find parent bin for element, falling back to main pipeline";
+      target_bin = instance->pipeline_;
+      gst_object_ref(target_bin); // Keep ref counting consistent
+    }
+
     GstElement* fakesink = gst_element_factory_make("fakesink", nullptr);
-    g_object_set(fakesink, "sync", FALSE, "async", FALSE, nullptr);
-    gst_bin_add(GST_BIN(instance->pipeline_), fakesink);
-    gst_element_sync_state_with_parent(fakesink);
+    g_object_set(fakesink,
+                 "sync", FALSE,
+                 "async", FALSE,
+                 "qos", FALSE,
+                 "enable-last-sample", FALSE,
+                 nullptr);
 
     GstPad* dummy_sinkpad = gst_element_get_static_pad(fakesink, "sink");
+
+    // Explicit failure check for adding to the bin
+    if (!gst_bin_add(GST_BIN(target_bin), fakesink)) {
+      qLog(Warning) << instance->id()
+                    << "Failed to add fakesink to target bin";
+
+      // Safely release all resources if we can't add to the bin
+      gst_object_unref(dummy_sinkpad);
+      gst_object_unref(fakesink);
+      gst_object_unref(target_bin);
+      gst_caps_unref(caps);
+      return;
+    }
+
+    gst_element_sync_state_with_parent(fakesink);
+
     GstPadLinkReturn ret = gst_pad_link(pad, dummy_sinkpad);
 
     if (ret != GST_PAD_LINK_OK && ret != GST_PAD_LINK_WAS_LINKED) {
       qLog(Warning) << instance->id()
                     << "Failed to link non-audio pad to fakesink:" << ret;
+
+      // Prevent element leak on failed link
+      gst_element_set_state(fakesink, GST_STATE_NULL);
+      gst_bin_remove(GST_BIN(target_bin), fakesink);
+    } else {
+      qLog(Debug) << "Successfully routed non-audio pad to isolated fakesink.";
     }
 
+    // Release our references for the successful path (and failed link path)
     gst_object_unref(dummy_sinkpad);
+    gst_object_unref(target_bin);
     gst_caps_unref(caps);
     return; 
   }
 
-  // 3. RESTORED: Guarded audio format detection
+  // Guarded audio format detection
   if (instance->format_ != GstEngine::kOutFormatDetect) {
     // Caps were set when the pipeline was constructed.
   } else if (instance->pipeline_is_initialised_) {
@@ -878,10 +923,10 @@ void GstEnginePipeline::NewPadCallback(GstElement*, GstPad* pad,
       instance->SetOutputFormat(GstEngine::kOutFormatF32LE);
     }
   }
-  
+
   gst_caps_unref(caps);
 
-  // 4. Continue with original audio linking
+  // Continue with original audio linking
   GstPad* const audiopad = gst_element_get_static_pad(instance->audiobin_, "sink");
   if (!audiopad) {
     qLog(Warning) << instance->id() << "Could not obtain audiobin_ sink pad";
@@ -897,7 +942,7 @@ void GstEnginePipeline::NewPadCallback(GstElement*, GstPad* pad,
         return;
       }
       qLog(Warning) << instance->id()
-                    << "audiopad is already linked, unlinking old peer pad";
+                     << "audiopad is already linked, unlinking old peer pad";
       gst_pad_unlink(peer, audiopad);
       gst_object_unref(peer);
     }
@@ -911,7 +956,13 @@ void GstEnginePipeline::NewPadCallback(GstElement*, GstPad* pad,
     return;
   }
 
-  // 5. Attach tracking probe
+  // Restore Clementine's gapless timestamp offset.
+  GstClockTime running_time = gst_segment_to_running_time(
+      &instance->last_decodebin_segment_, GST_FORMAT_TIME,
+      instance->last_decodebin_segment_.position);
+  gst_pad_set_offset(pad, running_time);
+
+  // Attach tracking probe
   gst_pad_add_probe(
       pad,
       static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER |
@@ -920,10 +971,16 @@ void GstEnginePipeline::NewPadCallback(GstElement*, GstPad* pad,
       DecodebinProbe, instance, nullptr);
 
   instance->pipeline_is_connected_ = true;
+
   if (instance->pending_seek_nanosec_ != -1 &&
       instance->pipeline_is_initialised_) {
+
+    // Store the seek target locally and clear the pending state immediately!
+    const qint64 target_seek = instance->pending_seek_nanosec_;
+    instance->pending_seek_nanosec_ = -1;
+
     QMetaObject::invokeMethod(instance, "Seek", Qt::QueuedConnection,
-                              Q_ARG(qint64, instance->pending_seek_nanosec_));
+                              Q_ARG(qint64, target_seek));
   }
 }
 
@@ -1007,13 +1064,18 @@ GstPadProbeReturn GstEnginePipeline::HandoffCallback(GstPad*,
           // GstEngine will try to seek to the start of the new section, but
           // we're already there so ignore it.
           instance->ignore_next_seek_ = true;
+          instance->pending_seek_nanosec_ = -1;
           emit instance->EndOfStreamReached(instance->id(), true);
         } else {
           // We have a next song but we can't cheat, so move to it normally.
+          // ADDED: Clear any lingering seek before starting the brand new track!
+          instance->pending_seek_nanosec_ = -1;
           instance->TransitionToNext();
         }
       } else {
         // There's no next song
+        // ADDED: Clear any lingering seek because playback is completely stopping!
+        instance->pending_seek_nanosec_ = -1;
         emit instance->EndOfStreamReached(instance->id(), false);
       }
     }
@@ -1144,6 +1206,7 @@ void GstEnginePipeline::TransitionToNext() {
   MaybeLinkDecodeToAudio();
 
   current_ = next_;
+  emit TrackChanged(current_.url_);
   end_offset_nanosec_ = next_end_offset_nanosec_;
   next_ = MediaPlaybackRequest();
   next_beginning_offset_nanosec_ = 0;
@@ -1162,9 +1225,13 @@ void GstEnginePipeline::TransitionToNext() {
 }
 
 qint64 GstEnginePipeline::position() const {
-  if (pipeline_is_initialised_)
+  gint64 queried_position = last_known_position_ns_;
+
+  if (pipeline_is_initialised_) {
     gst_element_query_position(pipeline_, GST_FORMAT_TIME,
-                               &last_known_position_ns_);
+                               &queried_position);
+    last_known_position_ns_ = queried_position;
+  }
 
   return last_known_position_ns_;
 }

@@ -110,6 +110,7 @@ class Base : public QObject {
   void TrackAboutToEnd();
 
   void TrackEnded();
+  void TrackChanged(const QUrl& new_track_url);
 
   void FadeoutFinishedSignal();
 

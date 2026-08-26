@@ -49,11 +49,13 @@ CurrentArtLoader::CurrentArtLoader(Application* app, QObject* parent)
 CurrentArtLoader::~CurrentArtLoader() {}
 
 void CurrentArtLoader::LoadArt(const Song& song) {
+
   last_song_ = song;
   id_ = app_->album_cover_loader()->LoadImageAsync(options_, last_song_);
 }
 
 void CurrentArtLoader::TempArtLoaded(quint64 id, const QImage& image) {
+
   if (id != id_) return;
   id_ = 0;
 
