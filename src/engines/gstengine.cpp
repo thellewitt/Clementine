@@ -912,12 +912,35 @@ void GstEngine::BackgroundStreamPlayDone(QFuture<GstStateChangeReturn> future,
 }
 
 int GstEngine::AddBackgroundStream(const QUrl& url) {
-  shared_ptr<GstEnginePipeline> pipeline = CreatePipeline(url, 0);
+  QUrl playback_url = url;
+
+  if (url.scheme() == "qrc") {
+    QFile resource(":" + url.path());
+
+    if (!resource.open(QIODevice::ReadOnly)) {
+      qLog(Error) << "Could not open Qt resource" << url;
+      return -1;
+    }
+
+    const QString temporary_file =
+        Utilities::SaveToTemporaryFile(resource.readAll());
+
+    if (temporary_file.isEmpty()) {
+      qLog(Error) << "Could not save Qt resource to temporary file" << url;
+      return -1;
+    }
+
+    playback_url = QUrl::fromLocalFile(temporary_file);
+  }
+
+  shared_ptr<GstEnginePipeline> pipeline =
+      CreatePipeline(playback_url, 0);
   if (!pipeline) {
     return -1;
   }
+
   pipeline->SetVolume(30);
-  pipeline->SetNextReq(url, 0, 0);
+  pipeline->SetNextReq(playback_url, 0, 0);
   return AddBackgroundStream(pipeline);
 }
 

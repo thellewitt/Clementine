@@ -28,8 +28,8 @@
 
 const char* BackgroundStreams::kSettingsGroup = "BackgroundStreams";
 const char* BackgroundStreams::kHypnotoadUrl = "hypnotoad:///";
-const char* BackgroundStreams::kRainUrl =
-    "http://data.clementine-player.org/rainymood";
+const char* BackgroundStreams::kRainUrl = "qrc:/RainyMood.mp3";
+const char* BackgroundStreams::kKittensUrl = "qrc:/Kittens.mp3";
 const char* BackgroundStreams::kEnterpriseUrl = "enterprise:///";
 
 BackgroundStreams::BackgroundStreams(EngineBase* engine, QObject* parent)
@@ -45,6 +45,7 @@ void BackgroundStreams::LoadStreams() {
   if (version < 1) {
     AddStream(QT_TR_NOOP("Hypnotoad"), QUrl(kHypnotoadUrl));
     AddStream(QT_TR_NOOP("Rain"), QUrl(kRainUrl));
+    AddStream(QT_TR_NOOP("Kittens"), QUrl(kKittensUrl));
   }
 
   if (version < kVersion) {
@@ -120,6 +121,11 @@ void BackgroundStreams::SetStreamVolume(const QString& name, int volume) {
 
 void BackgroundStreams::PlayStream(Stream* stream) {
   stream->id = engine_->AddBackgroundStream(stream->url);
+  if (stream->id == -1) {
+    qLog(Warning) << "Could not start background stream" << stream->name;
+    return;
+  }
+
   engine_->SetBackgroundStreamVolume(stream->id, stream->volume);
   emit StreamStarted(stream->name);
 

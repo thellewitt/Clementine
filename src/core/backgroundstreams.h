@@ -82,6 +82,7 @@ class BackgroundStreams : public QObject {
 
   static const char* kHypnotoadUrl;
   static const char* kRainUrl;
+  static const char* kKittensUrl;
   static const char* kEnterpriseUrl;
 };
 

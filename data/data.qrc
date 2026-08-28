@@ -268,6 +268,7 @@
         <file>icons/48x48/x-clementine-artist.png</file>
         <file>icons/48x48/x-clementine-shuffle.png</file>
         <file>icons/48x48/zoom-in.png</file>
+        <file>Kittens.mp3</file>
         <file>last.fm/as_disabled.png</file>
         <file>last.fm/as_light.png</file>
         <file>last.fm/as.png</file>
@@ -425,6 +426,7 @@
         <file>providers/48x48/vk.png</file>
         <file>providers/48x48/wikipedia.png</file>
         <file>rainbowdash.png</file>
+        <file>RainyMood.mp3</file>
         <file>sample.mood</file>
         <file>schema/device-schema.sql</file>
         <file>schema/jamendo.sql</file>
