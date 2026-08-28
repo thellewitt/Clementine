@@ -764,7 +764,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string comment="Label for buton to enable/disable kittens in the now playing widget">Kittens</string>
+    <string comment="Label for button to enable/disable kittens in the now playing widget">Kittens</string>
    </property>
   </action>
   <action name="action_console">
