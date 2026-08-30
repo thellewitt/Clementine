@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16.0)
 project(clementine)
 
 cmake_policy(SET CMP0053 NEW)
-cmake_policy(SET CMP0148 OLD)
+cmake_policy(SET CMP0148 NEW)
 cmake_policy(SET CMP0077 NEW)
 cmake_policy(SET CMP0167 NEW)
 
