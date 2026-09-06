@@ -1,48 +1,85 @@
-Clementine ![all](https://github.com/clementine-player/Clementine/workflows/all/badge.svg)
-----------------
+# Clementine
 
 Clementine is a modern music player and library organizer for Windows, Linux and macOS.
 
-- [Latest Release](https://github.com/clementine-player/Clementine/releases/latest)
-- [Latest Pre-Releases](https://github.com/clementine-player/Clementine/releases)
-- Website: http://www.clementine-player.org/
-- Github: https://github.com/clementine-player/Clementine
+This repository is a maintained fork of Clementine with additional fixes, improvements, and platform integration work.
 
-Opening an issue
-----------------
-### Ask for a new feature
+* [Latest Release](https://github.com/thellewitt/Clementine/releases/latest)
+* [Latest Pre-Releases](https://github.com/thellewitt/Clementine/releases)
+* Website: http://www.clementine-player.org/
+* GitHub: https://github.com/thellewitt/Clementine
+
+## Upgrading from an Earlier Version
+
+**If you are upgrading from an earlier version of this fork, it is strongly recommended that you regenerate Clementine's configuration before running the new version.**
+
+Recent changes affect configuration, database state, Extras, metadata handling, and file-type detection. Existing configuration and database files can contain information from older versions that prevents the new behavior from being applied correctly.
+
+Rather than deleting the old configuration, **rename the entire Clementine configuration directory to `Clementine.bak`**. This preserves your previous configuration as a backup while allowing Clementine to create a completely fresh configuration and library database.
+
+On Linux, the configuration directory is normally:
+
+```text
+~/.config/Clementine
+```
+
+For example:
+
+```bash
+mv ~/.config/Clementine ~/.config/Clementine.bak
+```
+
+Then start Clementine normally and allow it to generate a new configuration and rebuild the library database.
+
+This is particularly important when upgrading to a version containing the updated **Extras** support and improved **MP4/M4A file-type classification**.
+
+## Opening an Issue
+
+### Ask for a New Feature
 
 Please:
 
- * Check if the new feature is not already implemented (Changelog)
- * Check if another person didn't already open an issue
- * If there is already an opened issue there is no need to comment "+1", it won't help. Instead, you can subscribe to the issue to be notified of anything new about it
+* Check whether the feature has already been implemented.
+* Check whether another person has already opened an issue.
+* If an issue already exists, add useful information to it rather than posting `+1`.
 
-### Report a bug
+### Report a Bug
 
 Please:
- 
- * Try the latest build (https://github.com/clementine-player/Clementine/releases) to see if any bug is still present. If it works fine even though you see an open issue, please comment on it and explain that the issue has been fixed.
- * Check if another person has already opened the same issue to avoid duplicates
- * If there already is an open issue you could comment on it to add detail about the problem or confirm it
- * In case there isn't, you can open a new issue with an explicit title and as much information as possible (OS, Clementine version, how to reproduce the problem...)
- * Please use https://pastebin.com/ for logs/debug.
- 
-If there are no answers, it doesn't mean we don't care about your feature request/bug. It just means we can't reproduce the bug or haven't had time to implement it :o)
 
-Compiling from source
----------------------
+* Try the latest release or build first.
+* Check whether the problem has already been reported.
+* If an existing issue covers the problem, add useful details to it.
+* Otherwise, open a new issue with a clear title and as much information as possible, including your operating system, Clementine version, and steps to reproduce the problem.
+* Include relevant logs or debug output directly in the issue, preferably in a code block.
 
-Get the code (if you haven't already):
+## Compiling from Source
 
-    git clone https://github.com/clementine-player/Clementine.git && cd Clementine
+Clone the repository:
 
-Compile and install:
+```bash
+git clone https://github.com/thellewitt/Clementine.git
+cd Clementine
+```
 
-    cd bin
-    cmake ..
-    make -j$(nproc)
-    sudo make install
+Create the build directory and configure the project:
 
-See the Wiki for more instructions and a list of dependencies:
-https://github.com/clementine-player/Clementine/wiki#compiling-and-installing-clementine
+```bash
+cmake -S . -B build
+```
+
+Build Clementine:
+
+```bash
+cmake --build build -j$(nproc)
+```
+
+Install:
+
+```bash
+sudo cmake --install build
+```
+
+See the Wiki for additional build information and dependencies:
+
+https://github.com/thellewitt/Clementine/wiki#compiling-and-installing-clementine
