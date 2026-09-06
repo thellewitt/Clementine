@@ -30,6 +30,7 @@
 #include <mpcfile.h>
 #include <mpegfile.h>
 #include <oggfile.h>
+#include <taglib_config.h>
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -170,8 +171,6 @@ void TagReader::ReadFile(const QString& filename,
 
   std::unique_ptr<TagLib::FileRef> fileref(factory_->GetFileRef(filename));
   if (fileref->isNull()) {
-    qLog(Info) << "TagLib hasn't been able to read " << filename << " file";
-
     // Try fallback -- GME filetypes
     GME::ReadFile(info, song);
     return;
@@ -568,9 +567,8 @@ void TagReader::ReadFile(const QString& filename,
     song->set_length_nanosec(fileref->audioProperties()->lengthInMilliseconds() *
                              kNsecPerMsec);
   }
-
   // Get the filetype if we can
-  song->set_type(GuessFileType(fileref.get()));
+  song->set_type(GuessFileType(fileref.get(), filename));
 
 // Set integer fields to -1 if they're not valid
 #define SetDefault(field)   \
@@ -768,7 +766,7 @@ void TagReader::SetFMPSRatingVorbisComments(
 }
 
 cpb::tagreader::SongMetadata_Type TagReader::GuessFileType(
-    TagLib::FileRef* fileref) const {
+    TagLib::FileRef* fileref, const QString& filename) const {
 #ifdef TAGLIB_WITH_ASF
   if (dynamic_cast<TagLib::ASF::File*>(fileref->file()))
     return cpb::tagreader::SongMetadata_Type_ASF;
@@ -776,8 +774,14 @@ cpb::tagreader::SongMetadata_Type TagReader::GuessFileType(
   if (dynamic_cast<TagLib::FLAC::File*>(fileref->file()))
     return cpb::tagreader::SongMetadata_Type_FLAC;
 #ifdef TAGLIB_WITH_MP4
-  if (dynamic_cast<TagLib::MP4::File*>(fileref->file()))
+  if (dynamic_cast<TagLib::MP4::File*>(fileref->file()) &&
+      (filename.endsWith(".mp4", Qt::CaseInsensitive) ||
+       filename.endsWith(".m4a", Qt::CaseInsensitive) ||
+       filename.endsWith(".m4b", Qt::CaseInsensitive) ||
+       filename.endsWith(".m4p", Qt::CaseInsensitive) ||
+       filename.endsWith(".m4r", Qt::CaseInsensitive))) {
     return cpb::tagreader::SongMetadata_Type_MP4;
+  }
 #endif
   if (dynamic_cast<TagLib::MPC::File*>(fileref->file()))
     return cpb::tagreader::SongMetadata_Type_MPC;
@@ -810,8 +814,6 @@ cpb::tagreader::SongMetadata_Type TagReader::GuessFileType(
 bool TagReader::SaveFile(const QString& filename,
                          const cpb::tagreader::SongMetadata& song) const {
   if (filename.isNull()) return false;
-
-  qLog(Debug) << "Saving tags to" << filename;
 
   std::unique_ptr<TagLib::FileRef> fileref(factory_->GetFileRef(filename));
 
@@ -928,8 +930,6 @@ bool TagReader::SaveFile(const QString& filename,
 bool TagReader::SaveSongStatisticsToFile(
     const QString& filename, const cpb::tagreader::SongMetadata& song) const {
   if (filename.isNull()) return false;
-
-  qLog(Debug) << "Saving song statistics tags to" << filename;
 
   std::unique_ptr<TagLib::FileRef> fileref(factory_->GetFileRef(filename));
 
@@ -1385,7 +1385,7 @@ bool TagReader::ReadCloudFile(const QUrl& download_url, const QString& title,
                                      TagLib::ID3v2::FrameFactory::instance(),
                                      TagLib::AudioProperties::Accurate));
 #endif
-  } else if (mime_type == "audio/mp4" ||
+  } else if (mime_type == "audio/mp4" || mime_type == "video/mp4" ||
              (mime_type == "audio/mpeg" &&
               title.endsWith(".m4a", Qt::CaseInsensitive))) {
     tag.reset(new TagLib::MP4::File(stream.get(), true,

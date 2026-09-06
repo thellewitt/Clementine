@@ -252,6 +252,7 @@ QStringList Mpris2::SupportedMimeTypes() const {
                                          << "audio/x-vorbis"
                                          << "audio/x-vorbis+ogg"
                                          << "audio/x-wav"
+                                         << "video/mp4"
                                          << "video/x-ms-asf"
                                          << "x-content/audio-player";
   return res;

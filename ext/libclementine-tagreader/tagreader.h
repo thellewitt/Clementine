@@ -100,7 +100,7 @@ class TagReader {
   void GuessAlbum(const QFileInfo &info, cpb::tagreader::SongMetadata* song) const;
 
   cpb::tagreader::SongMetadata_Type GuessFileType(
-      TagLib::FileRef* fileref) const;
+      TagLib::FileRef* fileref, const QString& filename) const;
 
   void SetUserTextFrame(const QString& description, const QString& value,
                         TagLib::ID3v2::Tag* tag) const;
