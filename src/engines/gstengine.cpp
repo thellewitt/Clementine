@@ -98,26 +98,22 @@ const char* GstEngine::kHypnotoadPipeline =
     "band5=6 band6=5 band7=6 band8=0 band9=-24";
 const char* GstEngine::kEnterprisePipeline = R"(
     audiomixer name=dynamic !
-    audioecho intensity=0.36 delay=190000000 !
-    audiocheblimit mode=0 cutoff=3000 !
-    audioecho intensity=0.16 delay=680000000 !
+    audioecho intensity=0.17 delay=350000000 !
+    audioecho intensity=0.075 delay=820000000 !
     audiocheblimit mode=0 cutoff=1800 !
-    volume volume=0.58
-    audiotestsrc wave=triangle freq=45 volume=0.13 ! dynamic.
-    audiotestsrc wave=triangle freq=45.15 volume=0.08 ! dynamic.
-    audiotestsrc wave=sine freq=90 volume=0.025 ! dynamic.
-    audiotestsrc wave=sine freq=113 volume=0.045 ! dynamic.
-    audiotestsrc wave=sine freq=226 volume=0.018 ! dynamic.
-    audiotestsrc wave=sine freq=339 volume=0.008 ! dynamic.
-    audiotestsrc wave=pink-noise !
-    audiochebband mode=0 lower-frequency=200 upper-frequency=500 !
-    volume volume=0.045 ! dynamic.
-    audiotestsrc wave=pink-noise !
-    audiochebband mode=0 lower-frequency=450 upper-frequency=900 !
-    volume volume=0.050 ! dynamic.
-    audiotestsrc wave=pink-noise !
-    audiochebband mode=0 lower-frequency=800 upper-frequency=1400 !
-    volume volume=0.040 ! dynamic.
+    equalizer-10bands
+    band0=12 band1=12 band2=10 band3=6 band4=2
+    band5=0 band6=-6 band7=-12 band8=-20 band9=-24 !
+    audioconvert ! audioresample
+    audiotestsrc wave=red-noise volume=0.30 !
+    audiowsinclimit mode=low-pass cutoff=55 length=501 ! dynamic.
+    audiotestsrc wave=triangle freq=33.0 volume=0.08 ! dynamic.
+    audiotestsrc wave=triangle freq=33.02 volume=0.045 ! dynamic.
+    audiotestsrc wave=triangle freq=68.0 volume=0.06 ! dynamic.
+    audiotestsrc wave=triangle freq=70.0 volume=0.06 ! dynamic.
+    audiotestsrc wave=pink-noise volume=0.08 !
+    audiowsinclimit mode=high-pass cutoff=1200 length=301 !
+    audiowsinclimit mode=low-pass cutoff=2000 length=301 ! dynamic.
 )";
 
 GstEngine::GstEngine(Application* app)
@@ -884,6 +880,24 @@ shared_ptr<GstEnginePipeline> GstEngine::CreatePipeline(
     if (!ret->InitFromString(kEnterprisePipeline)) {
       qLog(Error) << "Could not initialize pipeline" << kEnterprisePipeline;
       ret.reset();
+    } else {
+      QFile resource(":/Enterprise.mp3");
+
+      if (!resource.open(QIODevice::ReadOnly)) {
+        qLog(Error) << "Could not open Qt resource :/Enterprise.mp3";
+        ret.reset();
+      } else {
+        const QString temporary_file =
+            Utilities::SaveToTemporaryFile(resource.readAll());
+
+        if (temporary_file.isEmpty()) {
+          qLog(Error) << "Could not save Qt resource :/Enterprise.mp3";
+          ret.reset();
+        } else if (!ret->AddEnterpriseResource(
+                       QUrl::fromLocalFile(temporary_file))) {
+          ret.reset();
+        }
+      }
     }
   } else {
     if (!ret->InitFromReq(req, end_nanosec)) ret.reset();

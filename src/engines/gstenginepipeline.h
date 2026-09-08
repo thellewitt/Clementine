@@ -57,6 +57,7 @@ class GstEnginePipeline : public GstPipelineBase {
   // Creates the pipeline, returns false on error
   bool InitFromReq(const MediaPlaybackRequest& req, qint64 end_nanosec);
   bool InitFromString(const QString& pipeline);
+  bool AddEnterpriseResource(const QUrl& url);
 
   // BufferConsumers get fed audio data.  Thread-safe.
   void AddBufferConsumer(BufferConsumer* consumer);
@@ -129,6 +130,7 @@ class GstEnginePipeline : public GstPipelineBase {
   static GstBusSyncReply BusCallbackSync(GstBus*, GstMessage*, gpointer);
   static gboolean BusCallback(GstBus*, GstMessage*, gpointer);
   static void NewPadCallback(GstElement*, GstPad*, gpointer);
+  static void EnterprisePadCallback(GstElement*, GstPad*, gpointer);
   static GstPadProbeReturn HandoffCallback(GstPad*, GstPadProbeInfo*, gpointer);
   static GstPadProbeReturn EventHandoffCallback(GstPad*, GstPadProbeInfo*,
                                                 gpointer);

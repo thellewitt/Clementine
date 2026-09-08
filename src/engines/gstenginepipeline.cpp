@@ -198,6 +198,274 @@ GstElement* GstEnginePipeline::CreateDecodeBinFromString(const char* pipeline) {
   }
 }
 
+bool GstEnginePipeline::AddEnterpriseResource(const QUrl& url) {
+  if (!uridecodebin_) return false;
+
+  qLog(Debug) << id() << "AddEnterpriseResource called with URL:" << url;
+
+  GstElement* mixer =
+      gst_bin_get_by_name(GST_BIN(uridecodebin_), "dynamic");
+  if (!mixer) {
+    qLog(Error) << id() << "Could not find Enterprise mixer";
+    return false;
+  }
+
+  GstElement* source = engine_->CreateElement("multifilesrc");
+  GstElement* decoder = engine_->CreateElement("decodebin");
+  GstElement* convert = engine_->CreateElement("audioconvert");
+  GstElement* resample = engine_->CreateElement("audioresample");
+  GstElement* volume = engine_->CreateElement("volume");
+  GstElement* echo = engine_->CreateElement("audioecho");
+
+  qLog(Debug) << id()
+              << "Enterprise decoder created:"
+              << (decoder ? GST_ELEMENT_NAME(decoder) : "NULL");
+
+  if (!source || !decoder || !convert || !resample || !volume || !echo) {
+    qLog(Error) << id() << "Could not create Enterprise audio elements";
+
+    if (source) gst_object_unref(source);
+    if (decoder) gst_object_unref(decoder);
+    if (convert) gst_object_unref(convert);
+    if (resample) gst_object_unref(resample);
+    if (volume) gst_object_unref(volume);
+    if (echo) gst_object_unref(echo);
+
+    gst_object_unref(mixer);
+    return false;
+  }
+
+  gst_element_set_name(convert, "enterprise-convert");
+
+  g_object_set(G_OBJECT(volume),
+               "volume", 1.0,
+               nullptr);
+
+  g_object_set(G_OBJECT(echo),
+               "intensity", 0.15,
+               "delay", static_cast<gint64>(120000000),
+               nullptr);
+
+  g_object_set(G_OBJECT(source),
+               "location", url.toLocalFile().toUtf8().constData(),
+               "loop", TRUE,
+               "start-index", 0,
+               "stop-index", 0,
+               nullptr);
+
+  gst_bin_add_many(GST_BIN(uridecodebin_),
+                   source,
+                   decoder,
+                   convert,
+                   resample,
+                   volume,
+                   echo,
+                   nullptr);
+
+  qLog(Debug) << id()
+              << "Enterprise decoder and processing elements added to bin";
+
+  if (!gst_element_link(source, decoder)) {
+    qLog(Error) << id()
+                << "Could not link Enterprise multifilesrc to decoder";
+
+    gst_bin_remove_many(GST_BIN(uridecodebin_),
+                        source,
+                        decoder,
+                        convert,
+                        resample,
+                        volume,
+                        echo,
+                        nullptr);
+
+    gst_object_unref(mixer);
+    return false;
+  }
+
+  if (!gst_element_link_many(convert,
+                             resample,
+                             volume,
+                             echo,
+                             nullptr)) {
+    qLog(Error) << id()
+                << "Could not link Enterprise audio chain";
+
+    gst_bin_remove_many(GST_BIN(uridecodebin_),
+                        source,
+                        decoder,
+                        convert,
+                        resample,
+                        volume,
+                        echo,
+                        nullptr);
+
+    gst_object_unref(mixer);
+    return false;
+  }
+
+  GstPad* mixer_pad =
+      gst_element_request_pad_simple(mixer, "sink_%u");
+  GstPad* echo_pad =
+      gst_element_get_static_pad(echo, "src");
+
+  if (!mixer_pad || !echo_pad) {
+    qLog(Error) << id()
+                << "Could not obtain Enterprise mixer pads";
+
+    if (mixer_pad) gst_object_unref(mixer_pad);
+    if (echo_pad) gst_object_unref(echo_pad);
+
+    gst_bin_remove_many(GST_BIN(uridecodebin_),
+                        source,
+                        decoder,
+                        convert,
+                        resample,
+                        volume,
+                        echo,
+                        nullptr);
+
+    gst_object_unref(mixer);
+    return false;
+  }
+
+  GstPadLinkReturn link_ret =
+      gst_pad_link(echo_pad, mixer_pad);
+
+  qLog(Debug) << id()
+              << "Enterprise echo → mixer link result:"
+              << link_ret;
+
+  gst_object_unref(echo_pad);
+  gst_object_unref(mixer_pad);
+  gst_object_unref(mixer);
+
+  if (link_ret != GST_PAD_LINK_OK) {
+    qLog(Error) << id()
+                << "Could not link Enterprise audio to mixer:"
+                << link_ret;
+
+    gst_bin_remove_many(GST_BIN(uridecodebin_),
+                        source,
+                        decoder,
+                        convert,
+                        resample,
+                        volume,
+                        echo,
+                        nullptr);
+
+    return false;
+  }
+
+  CHECKED_GCONNECT(G_OBJECT(decoder),
+                   "pad-added",
+                   &EnterprisePadCallback,
+                   this);
+
+  qLog(Debug) << id() << "Starting Enterprise resource";
+
+  gst_element_sync_state_with_parent(convert);
+  gst_element_sync_state_with_parent(resample);
+  gst_element_sync_state_with_parent(volume);
+  gst_element_sync_state_with_parent(echo);
+  gst_element_sync_state_with_parent(decoder);
+  gst_element_sync_state_with_parent(source);
+
+  qLog(Debug) << id() << "Enterprise resource setup complete";
+
+  return true;
+}
+
+void GstEnginePipeline::EnterprisePadCallback(
+    GstElement* element, GstPad* pad, gpointer self) {
+  GstEnginePipeline* instance =
+      reinterpret_cast<GstEnginePipeline*>(self);
+
+  qLog(Debug) << instance->id()
+              << "Enterprise decoder pad added:"
+              << GST_PAD_NAME(pad)
+              << "from element:"
+              << GST_ELEMENT_NAME(element);
+
+  GstCaps* caps = gst_pad_get_current_caps(pad);
+  if (!caps) {
+    caps = gst_pad_query_caps(pad, nullptr);
+  }
+
+  if (!caps || gst_caps_is_empty(caps)) {
+    qLog(Debug) << instance->id()
+                << "Enterprise decoder pad has no usable caps";
+    if (caps) gst_caps_unref(caps);
+    return;
+  }
+
+  GstStructure* structure = gst_caps_get_structure(caps, 0);
+  const gchar* type = gst_structure_get_name(structure);
+
+  qLog(Debug) << instance->id()
+              << "Enterprise pad caps:"
+              << type;
+
+  if (!g_str_has_prefix(type, "audio/")) {
+    qLog(Debug) << instance->id()
+                << "Enterprise pad is not audio, ignoring";
+    gst_caps_unref(caps);
+    return;
+  }
+
+  GstElement* convert =
+      gst_bin_get_by_name(GST_BIN(instance->uridecodebin_),
+                          "enterprise-convert");
+
+  if (!convert) {
+    qLog(Error) << instance->id()
+                << "Could not find Enterprise converter";
+    gst_caps_unref(caps);
+    return;
+  }
+
+  GstPad* sink = gst_element_get_static_pad(convert, "sink");
+
+  if (!sink) {
+    qLog(Error) << instance->id()
+                << "Could not obtain Enterprise converter sink pad";
+    gst_object_unref(convert);
+    gst_caps_unref(caps);
+    return;
+  }
+
+  if (GST_PAD_IS_LINKED(sink)) {
+    qLog(Debug) << instance->id()
+                << "Enterprise converter sink is already linked";
+    gst_object_unref(sink);
+    gst_object_unref(convert);
+    gst_caps_unref(caps);
+    return;
+  }
+
+  GstCaps* sink_caps = gst_pad_query_caps(sink, caps);
+
+  if (sink_caps) {
+    gchar* sink_caps_string = gst_caps_to_string(sink_caps);
+
+    qLog(Debug) << instance->id()
+                << "Enterprise converter sink accepts:"
+                << sink_caps_string;
+
+    g_free(sink_caps_string);
+    gst_caps_unref(sink_caps);
+  }
+
+  GstPadLinkReturn link_ret = gst_pad_link(pad, sink);
+
+  qLog(Debug) << instance->id()
+              << "Enterprise decoder → converter link result:"
+              << link_ret;
+
+  gst_object_unref(sink);
+  gst_object_unref(convert);
+  gst_caps_unref(caps);
+}
+
 bool GstEnginePipeline::InitAudioBin() {
   // Here we create all the parts of the gstreamer pipeline - from the source
   // to the sink.  The parts of the pipeline are split up into bins:

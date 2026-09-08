@@ -23,7 +23,7 @@ macro(add_pot outfiles header pot)
     OUTPUT ${pot}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND ${GETTEXT_XGETTEXT_EXECUTABLE}
-        ${XGETTEXT_OPTIONS} -s -C --omit-header
+        ${XGETTEXT_OPTIONS} -F -C --omit-header
         --output=${CMAKE_CURRENT_BINARY_DIR}/pot.temp
         ${add_pot_sources}
     COMMAND cat ${header} ${CMAKE_CURRENT_BINARY_DIR}/pot.temp > ${pot}
