@@ -307,6 +307,26 @@ void AlbumCoverManager::ArtistChanged(QListWidgetItem* current) {
     case Specific_Artist:
       albums = library_backend_->GetAlbumsByArtist(current->text());
       albums += library_backend_->GetAlbumsByAlbumArtist(current->text());
+
+      // The two queries above can return the same logical album when the
+      // selected artist is both the track artist and album artist. Deduplicate
+      // the combined result using the album's effective artist and album name.
+      {
+        QSet<QString> seen;
+        LibraryBackend::AlbumList unique_albums;
+
+        for (const LibraryBackend::Album& album : albums) {
+          const QString key =
+              album.effective_albumartist() + QChar('\x1f') + album.album_name;
+
+          if (seen.contains(key)) continue;
+
+          seen.insert(key);
+          unique_albums << album;
+        }
+
+        albums.swap(unique_albums);
+      }
       break;
     case All_Artists:
     default:
