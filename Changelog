@@ -1,3 +1,33 @@
+Version 1.4.1+mintian:
+  Major features:
+    * Reincarnate Clementine from the ashes.
+    * Deploy Starfleet technology.
+
+  Other features:
+    * Add Mintian branding.
+    * Upgrade to Qt 6.10.2.
+    * Restore audio playback with renewed determination.
+    * Teach Clementine that MP4 files are, in fact, music-capable.
+    * Improve visualization support with projectM 4.2.0.
+    * Add and refine assorted Mintian audio enhancements.
+    * Integrate Starfleet technology into the audio subsystem.
+    * Introduce Enterprise-class ambient audio processing.
+    * Tune background effects for maximum warp-drive authenticity.
+    * Ensure the USS Clementine remains operational during extended
+      voyages through the Mintian audio sector.
+
+  Bugfixes:
+    * Fix Cover Manager shenanigans.
+    * Fix message reply lifetime to prevent a particularly obnoxious
+      use-after-lifetime crash.
+    * Fix various GStreamer pipeline ailments, e.g. Tail-Blast and Haunted Jukebox.
+    * Fix the mysterious "now you see it, now you don't" crash.
+    * Fix assorted track progression weirdness.
+    * Fix Internal Data Stream Error by applying an entirely unrelated
+      problem patch and declaring victory.
+
+
+
 Version 1.3:
   Major features:
     * Vk.com support

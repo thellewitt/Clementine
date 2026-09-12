@@ -127,7 +127,7 @@ else(FORCE_GIT_REVISION)
   message(STATUS "Found git: ${GIT_EXECUTABLE}")
 
   if(NOT GIT_EXECUTABLE-NOTFOUND)
-    execute_process(COMMAND ${GIT_EXECUTABLE} describe
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --long
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         RESULT_VARIABLE GIT_INFO_RESULT
         OUTPUT_VARIABLE GIT_REV
