@@ -416,16 +416,12 @@ if(GMOCK_INCLUDE_DIRS)
   endif(GTEST_INCLUDE_DIRS)
 endif(GMOCK_INCLUDE_DIRS)
 
-# Use the system libmygpo-qt5 if a recent enough version was found
-if(LIBMYGPO_QT5_FOUND)
-  set(MYGPOQT5_LIBRARIES ${LIBMYGPO_QT5_LIBRARIES})
-  set(MYGPOQT5_INCLUDE_DIRS ${LIBMYGPO_QT5_INCLUDE_DIRS})
-else()
-  add_definitions(-DMYGPO_STATIC)
-  add_subdirectory(3rdparty/libmygpo-qt5)
-  set(MYGPOQT5_LIBRARIES mygpo-qt5)
-  set(MYGPOQT5_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libmygpo-qt5/src)
-endif()
+# Use the bundled libmygpo-qt5, which is adapted for Qt6.
+add_definitions(-DMYGPO_STATIC)
+add_subdirectory(3rdparty/libmygpo-qt5)
+set(MYGPOQT5_LIBRARIES mygpo-qt5)
+set(MYGPOQT5_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libmygpo-qt5/src)
 
 # Qocoa
 add_subdirectory(3rdparty/qocoa)

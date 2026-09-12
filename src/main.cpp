@@ -408,7 +408,7 @@ int main(int argc, char* argv[]) {
 
   // Output the version, so when people attach log output to bug reports they
   // don't have to tell us which version they're using.
-  qLog(Info) << "Clementine-qt5" << CLEMENTINE_VERSION_DISPLAY;
+  qLog(Info) << "Clementine-qt6" << CLEMENTINE_VERSION_DISPLAY;
 
   // Seed the random number generators.
   time_t t = time(nullptr);

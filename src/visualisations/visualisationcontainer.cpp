@@ -171,8 +171,8 @@ void VisualisationContainer::showEvent(QShowEvent* e) {
                            QMessageBox::Close);
       return;
     }
-    Init();
     initialised_ = true;
+    Init();
   }
 
   QGraphicsView::showEvent(e);
@@ -182,7 +182,6 @@ void VisualisationContainer::showEvent(QShowEvent* e) {
 }
 
 void VisualisationContainer::hideEvent(QHideEvent* e) {
-  qLog(Debug) << "Hiding visualization";
   QGraphicsView::hideEvent(e);
   update_timer_.stop();
 

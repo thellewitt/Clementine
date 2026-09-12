@@ -32,10 +32,12 @@ QDBusArgument& operator<<(QDBusArgument& arg, const QImage& image) {
   if (image.isNull()) {
     // Sometimes this gets called with a null QImage for no obvious reason.
     arg.beginStructure();
-    arg << 0 << 0 << 0 << false << 0 << 0 << QByteArray();
+    arg << qint32(0) << qint32(0) << qint32(0) << false
+        << qint32(0) << qint32(0) << QByteArray();
     arg.endStructure();
     return arg;
   }
+
   QImage scaled = image.scaledToHeight(100, Qt::SmoothTransformation);
 
   scaled = scaled.convertToFormat(QImage::Format_ARGB32);
@@ -58,18 +60,22 @@ QDBusArgument& operator<<(QDBusArgument& arg, const QImage& image) {
 #endif
 
   arg.beginStructure();
-  arg << i.width();
-  arg << i.height();
-  arg << i.bytesPerLine();
+  arg << qint32(i.width());
+  arg << qint32(i.height());
+  arg << qint32(i.bytesPerLine());
   arg << i.hasAlphaChannel();
+
   int channels = i.isGrayscale() ? 1 : (i.hasAlphaChannel() ? 4 : 3);
-  arg << i.depth() / channels;
-  arg << channels;
+
+  arg << qint32(i.depth() / channels);
+  arg << qint32(channels);
+
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
   arg << QByteArray(reinterpret_cast<const char*>(i.bits()), i.sizeInBytes());
 #else
   arg << QByteArray(reinterpret_cast<const char*>(i.bits()), i.byteCount());
 #endif
+
   arg.endStructure();
   return arg;
 }

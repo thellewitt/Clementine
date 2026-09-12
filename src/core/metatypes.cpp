@@ -94,7 +94,7 @@ void RegisterMetaTypes() {
   // a name mapping so QVariant::load() can resolve old settings values that
   // were serialized under this legacy alias ("ColumnAlignmentMap" is what
   // playlistheader.cpp historically saved column-alignment settings as).
-  qRegisterMetaType<QMap<int, int>>("ColumnAlignmentMap");
+  qRegisterMetaType<ColumnAlignmentMap>("ColumnAlignmentMap");
   qRegisterMetaType<QList<Song>>("QList<Song>");
   qRegisterMetaType<QNetworkCookie>("QNetworkCookie");
   qRegisterMetaType<QNetworkReply*>("QNetworkReply*");

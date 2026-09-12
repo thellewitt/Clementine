@@ -30,20 +30,14 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
-#include <QGraphicsView>
 #include <QMessageBox>
-#include <QPaintEngine>
 #include <QPainter>
 #include <QSettings>
-#include <QTimerEvent>
-#include <QtDebug>
+#include <QOpenGLWidget>
 
 #ifdef Q_OS_MAC
 #include <OpenGL/gl.h>
-
 #include "core/mac_startup.h"
-#else
-#include <GL/gl.h>
 #endif
 
 ProjectMVisualisation::ProjectMVisualisation(VisualisationContainer* container)
@@ -115,6 +109,7 @@ void ProjectMVisualisation::InitProjectM() {
 
   // Create projectM instance
   projectm_ = projectm_create();
+  qDebug() << "InitProjectM: projectm_create =" << projectm_;
   if (!projectm_) {
     qWarning("Failed to create projectM instance");
     return;
@@ -163,7 +158,14 @@ void ProjectMVisualisation::drawBackground(QPainter* p, const QRectF&) {
   }
 
   if (projectm_) {
-    projectm_opengl_render_frame(projectm_);
+    QOpenGLWidget* gl_widget =
+        qobject_cast<QOpenGLWidget*>(container_->viewport());
+
+    if (gl_widget) {
+      projectm_opengl_render_frame_fbo(
+          projectm_,
+          gl_widget->defaultFramebufferObject());
+    }
   }
 
   p->endNativePainting();
