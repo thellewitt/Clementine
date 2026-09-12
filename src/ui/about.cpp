@@ -55,6 +55,7 @@ About::About(QWidget* parent) : QDialog(parent) {
              << Person("Andreas Muttscheller", "asfa194@gmail.com")
              << Person("Mark Furneaux", "mark@furneaux.ca")
              << Person("Mattias Andersson", "mandersson444@gmail.com")
+             << Person("Triala Boomdeay", "bradfordspencer03@gmail.com")
              << Person("Vikram Ambrose", "ambroseworks@gmail.com")
              << Person("Jonas Kvinge", "jonas@jkvinge.net");
 
