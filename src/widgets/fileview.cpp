@@ -31,10 +31,15 @@
 #include "ui_fileview.h"
 
 const char* FileView::kFileFilter =
-    "*.mp3 *.ogg *.flac *.mpc *.m4a *.m4b *.aac *.wma "
-    "*.mp4 *.spx *.wav *.m3u *.m3u8 *.pls *.xspf "
-    "*.asx *.asxini *.cue *.ape *.wv *.mka *.opus "
-    "*.oga *.mka *.mp2 *.spc *.vgm";
+    // Common Audio & Media Formats
+    "*.aac *.ape *.flac *.m4a *.m4b *.mka *.mp2 *.mp3 *.mp4 *.mpc "
+    "*.oga *.ogg *.opus *.spx *.wav *.wma *.wv "
+    // Cue Sheets & Redirects
+    "*.asx *.asxini *.cue "
+    // Playlists
+    "*.m3u *.m3u8 *.pls *.xspf "
+    // Video Game Audio / Chiptunes
+    "*.spc *.vgm";
 
 FileView::FileView(QWidget* parent)
     : QWidget(parent),

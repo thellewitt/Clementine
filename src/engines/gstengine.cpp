@@ -98,8 +98,8 @@ const char* GstEngine::kHypnotoadPipeline =
     "band5=6 band6=5 band7=6 band8=0 band9=-24";
 const char* GstEngine::kEnterprisePipeline = R"(
     audiomixer name=dynamic !
-    audioecho intensity=0.17 delay=350000000 !
-    audioecho intensity=0.075 delay=820000000 !
+    audioecho intensity=0.12 delay=300000000 !
+    audioecho intensity=0.030 delay=650000000 !
     audiocheblimit mode=0 cutoff=1800 !
     equalizer-10bands
     band0=12 band1=12 band2=10 band3=6 band4=2

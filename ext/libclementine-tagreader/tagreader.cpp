@@ -165,10 +165,6 @@ void TagReader::ReadFile(const QString& filename,
   }
   song->set_ctime(btime);
 
-  qLog(Debug) << "Reading tags from" << filename << ". Got tags:"
-              << "size=" << info.size() << "; mtime=" << mtime
-              << "; birthtime=" << btime;
-
   std::unique_ptr<TagLib::FileRef> fileref(factory_->GetFileRef(filename));
   if (fileref->isNull()) {
     // Try fallback -- GME filetypes
@@ -242,8 +238,8 @@ void TagReader::ReadFile(const QString& filename,
     }
 
     if (items.contains("BPM")) {
-      Decode(items["BPM"].values().toString(", "), nullptr,
-             song->mutable_performer());
+      song->set_bpm(
+          TStringToQString(items["BPM"].toString()).trimmed().toFloat());
     }
 
     if (items.contains("PERFORMER")) {

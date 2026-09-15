@@ -2,7 +2,7 @@ Source: clementine
 Section: sound
 Priority: optional
 Maintainer: David Sansome <me@davidsansome.com>
-Build-Depends: debhelper (>= 7),
+Build-Depends: debhelper-compat (= 13),
                make,
                cmake,
                gcc,
@@ -52,7 +52,7 @@ Build-Depends: debhelper (>= 7),
 # see the per-distro install lists in .github/workflows/all.yml, which are
 # what actually drives each CI build (dpkg-buildpackage's -d flag skips
 # Build-Depends checking here, so this listing doesn't gate the build).
-Standards-Version: 3.9.8
+Standards-Version: 4.7.0
 Homepage: http://www.clementine-player.org/
 
 Package: clementine

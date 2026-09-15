@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
 export DEB_CXXFLAGS_MAINT_APPEND = -DQT_NO_DEBUG_OUTPUT -DQT_NO_WARNING_OUTPUT
-export DEB_VERSION = $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 -d ' ')
+export DEB_VERSION = $(shell dpkg-parsechangelog | grep -E '^Version:' | cut -f 2 -d ' ')
 
 %:
 	dh $@ --buildsystem=cmake
