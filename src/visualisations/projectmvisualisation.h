@@ -85,6 +85,7 @@ class ProjectMVisualisation : public QGraphicsScene, public BufferConsumer {
   int duration_;
 
   QString preset_path_;
+  QString pending_preset_;
 
   int texture_size_;
   // As of version 5.6, Qt supports automatic scaling for high-DPI displays. We
