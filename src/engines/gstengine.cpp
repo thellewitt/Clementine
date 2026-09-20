@@ -291,6 +291,7 @@ qint64 GstEngine::position_nanosec() const {
   if (!current_pipeline_) return 0;
 
   const qint64 result = current_pipeline_->position() - beginning_nanosec_;
+
   return qint64(qMax(0ll, result));
 }
 
@@ -795,8 +796,14 @@ void GstEngine::HandlePipelineError(int pipeline_id, const QString& message,
 void GstEngine::EndOfStreamReached(int pipeline_id, bool has_next_track) {
   if (!IsCurrentPipeline(pipeline_id)) return;
 
-  if (gapless_track_changed_pending_ && has_next_track) {
-    gapless_track_changed_pending_ = false;
+  // During a gapless transition, EOS from the old decoder can arrive before
+  // the new decoder's stream-start/discontinuity notification. Ignore those
+  // EOS events. Keep the pending flag until the new stream confirms the
+  // transition with has_next_track == true.
+  if (gapless_track_changed_pending_) {
+    if (has_next_track) {
+      gapless_track_changed_pending_ = false;
+    }
     return;
   }
 

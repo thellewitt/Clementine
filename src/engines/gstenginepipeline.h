@@ -31,7 +31,6 @@
 #include "gstpipelinebase.h"
 #include "playbackrequest.h"
 
-class GstElementDeleter;
 class GstEngine;
 class BufferConsumer;
 
@@ -130,6 +129,7 @@ class GstEnginePipeline : public GstPipelineBase {
   static GstBusSyncReply BusCallbackSync(GstBus*, GstMessage*, gpointer);
   static gboolean BusCallback(GstBus*, GstMessage*, gpointer);
   static void NewPadCallback(GstElement*, GstPad*, gpointer);
+
   static void EnterprisePadCallback(GstElement*, GstPad*, gpointer);
   static GstPadProbeReturn HandoffCallback(GstPad*, GstPadProbeInfo*, gpointer);
   static GstPadProbeReturn EventHandoffCallback(GstPad*, GstPadProbeInfo*,
@@ -148,6 +148,7 @@ class GstEnginePipeline : public GstPipelineBase {
   void StateChangedMessageReceived(GstMessage*);
   void BufferingMessageReceived(GstMessage*);
   void StreamStatusMessageReceived(GstMessage*);
+  void RemoveNonAudioFakesinks(GstElement* decode_bin);
 
   QString ParseTag(GstTagList* list, const char* tag) const;
 
@@ -179,8 +180,6 @@ class GstEnginePipeline : public GstPipelineBase {
   static const int kFaderFudgeMsec;
   static const int kEqBandCount;
   static const int kEqBandFrequencies[];
-
-  static GstElementDeleter* sElementDeleter;
 
   GstEngine* engine_;
 
