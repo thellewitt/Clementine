@@ -31,6 +31,7 @@
 #include "gstpipelinebase.h"
 #include "playbackrequest.h"
 
+class GstElementDeleter;
 class GstEngine;
 class BufferConsumer;
 
@@ -180,6 +181,8 @@ class GstEnginePipeline : public GstPipelineBase {
   static const int kFaderFudgeMsec;
   static const int kEqBandCount;
   static const int kEqBandFrequencies[];
+  
+  static GstElementDeleter* sElementDeleter;
 
   GstEngine* engine_;
 

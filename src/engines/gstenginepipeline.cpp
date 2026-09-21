@@ -58,6 +58,8 @@ void FreeNonAudioFakesinks(gpointer data) {
 
 }
 
+GstElementDeleter* GstEnginePipeline::sElementDeleter = nullptr;
+
 GstEnginePipeline::GstEnginePipeline(GstEngine* engine)
     : GstPipelineBase("audio"),
       engine_(engine),
@@ -107,6 +109,9 @@ GstEnginePipeline::GstEnginePipeline(GstEngine* engine)
       tee_(nullptr),
       tee_probe_pad_(nullptr),
       tee_audio_pad_(nullptr) {
+    if (!sElementDeleter) {
+    sElementDeleter = new GstElementDeleter;
+  }
 
   for (int i = 0; i < kEqBandCount; ++i) eq_band_gains_ << 0;
 }
@@ -1562,12 +1567,15 @@ void GstEnginePipeline::SourceSetupCallback(GstURIDecodeBin* bin,
 }
 
 void GstEnginePipeline::TransitionToNext() {
+  GstElement* old_decode_bin = uridecodebin_;
+
   ignore_tags_ = true;
 
   if (!ReplaceDecodeBin(next_.url_)) {
     qLog(Error) << "ReplaceDecodeBin failed with " << next_.url_;
     return;
   }
+
   gst_element_set_state(uridecodebin_, GST_STATE_PLAYING);
   MaybeLinkDecodeToAudio();
 
@@ -1582,6 +1590,13 @@ void GstEnginePipeline::TransitionToNext() {
   // song hasn't finished playing yet.  We'll get a new stream when it really
   // does finish, so emit TrackEnded then.
   emit_track_ended_on_stream_start_ = true;
+
+  // The old decodebin has already been removed from the pipeline by
+  // ReplaceDecodeBin().  It must be destroyed asynchronously in the main
+  // thread, after the new decodebin has been started, to avoid the race
+  // condition that can otherwise occur during a track transition.
+  sElementDeleter->DeleteElementLater(old_decode_bin);
+
   ignore_tags_ = false;
 }
 
