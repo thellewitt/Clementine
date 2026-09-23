@@ -37,7 +37,7 @@ const int MoodbarProxyStyle::kArrowWidth = 17;
 const int MoodbarProxyStyle::kArrowHeight = 13;
 
 MoodbarProxyStyle::MoodbarProxyStyle(Application* app, QSlider* slider)
-    : QProxyStyle(slider->style()),
+  : QProxyStyle(slider->style()),
       app_(app),
       slider_(slider),
       enabled_(true),
@@ -163,6 +163,7 @@ void MoodbarProxyStyle::drawComplexControl(ComplexControl control,
                                            const QStyleOptionComplex* option,
                                            QPainter* painter,
                                            const QWidget* widget) const {
+
   if (control != CC_Slider || widget != slider_) {
     QProxyStyle::drawComplexControl(control, option, painter, widget);
     return;

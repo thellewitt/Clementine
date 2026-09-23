@@ -143,22 +143,38 @@ void MoodbarPipeline::NewPadCallback(GstElement*, GstPad* pad, gpointer data) {
     return;
   }
 
+  GstCaps* caps = gst_pad_get_current_caps(pad);
+  if (!caps) {
+    qLog(Warning) << "Ignoring moodbar pad without negotiated caps";
+    return;
+  }
+
+  GstStructure* structure = gst_caps_get_structure(caps, 0);
+  const gchar* media_type = gst_structure_get_name(structure);
+  if (!g_str_has_prefix(media_type, "audio/")) {
+    gst_caps_unref(caps);
+    return;
+  }
+
+  int rate = 0;
+  gst_structure_get_int(structure, "rate", &rate);
+  gst_caps_unref(caps);
+
   GstPad* const audiopad =
       gst_element_get_static_pad(self->convert_element_, "sink");
 
   if (GST_PAD_IS_LINKED(audiopad)) {
-    qLog(Warning) << "audiopad is already linked, unlinking old pad";
-    gst_pad_unlink(audiopad, GST_PAD_PEER(audiopad));
+    gst_object_unref(audiopad);
+    return;
   }
 
-  gst_pad_link(pad, audiopad);
+  GstPadLinkReturn link_result = gst_pad_link(pad, audiopad);
   gst_object_unref(audiopad);
 
-  int rate = 0;
-  GstCaps* caps = gst_pad_get_current_caps(pad);
-  GstStructure* structure = gst_caps_get_structure(caps, 0);
-  gst_structure_get_int(structure, "rate", &rate);
-  gst_caps_unref(caps);
+  if (link_result != GST_PAD_LINK_OK) {
+    qLog(Warning) << "Failed to link moodbar audio pad:" << link_result;
+    return;
+  }
 
   if (self->builder_ != nullptr)
     self->builder_->Init(kBands, rate);

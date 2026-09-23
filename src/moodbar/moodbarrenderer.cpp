@@ -35,11 +35,17 @@ ColorVector MoodbarRenderer::Colors(const QByteArray& data, MoodbarStyle style,
     case Style_Angry:
       properties = StyleProperties(samples / 360 * 9, 45, -45, 200, 100);
       break;
+    case Style_Euphoric:
+      properties = StyleProperties(samples / 360 * 3, 300, 180, 200, 255);
+      break;
     case Style_Frozen:
       properties = StyleProperties(samples / 360 * 1, 140, 160, 50, 100);
       break;
     case Style_Happy:
       properties = StyleProperties(samples / 360 * 2, 0, 359, 150, 250);
+      break;
+    case Style_Neon:
+      properties = StyleProperties(samples / 360 * 3, 180, 240, 250, 255);
       break;
     case Style_Normal:
       properties = StyleProperties(samples / 360 * 3, 0, 359, 100, 100);
@@ -170,10 +176,14 @@ QString MoodbarRenderer::StyleName(MoodbarStyle style) {
       return QObject::tr("Normal");
     case Style_Angry:
       return QObject::tr("Angry");
+    case Style_Euphoric:
+      return QObject::tr("Euphoric");
     case Style_Frozen:
       return QObject::tr("Frozen");
     case Style_Happy:
       return QObject::tr("Happy");
+    case Style_Neon:
+      return QObject::tr("Neon");
     case Style_SystemPalette:
       return QObject::tr("System colors");
 

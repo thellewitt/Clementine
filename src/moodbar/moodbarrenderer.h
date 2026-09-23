@@ -33,8 +33,10 @@ class MoodbarRenderer {
   enum MoodbarStyle {
     Style_Normal = 0,
     Style_Angry,
+    Style_Euphoric,
     Style_Frozen,
     Style_Happy,
+    Style_Neon,
     Style_SystemPalette,
     StyleCount
   };
