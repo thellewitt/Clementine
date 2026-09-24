@@ -26,6 +26,7 @@ class Application;
 
 class QActionGroup;
 class QMenu;
+class QPaintEvent;
 class QSlider;
 class QStyleOptionSlider;
 class QTimeLine;
@@ -63,7 +64,7 @@ class MoodbarProxyStyle : public QProxyStyle {
 
  private:
   void NextState();
-
+  bool PaintMoodbar(QPaintEvent* event);
   void Render(ComplexControl control, const QStyleOptionSlider* option,
               QPainter* painter, const QWidget* widget);
   void EnsureMoodbarRendered(const QStyleOptionSlider* opt);

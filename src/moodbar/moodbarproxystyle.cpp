@@ -22,6 +22,7 @@
 #include <QEvent>
 #include <QMenu>
 #include <QPainter>
+#include <QPaintEvent>
 #include <QSettings>
 #include <QSlider>
 #include <QStyleOptionComplex>
@@ -142,13 +143,19 @@ void MoodbarProxyStyle::FaderValueChanged(qreal value) { slider_->update(); }
 bool MoodbarProxyStyle::eventFilter(QObject* object, QEvent* event) {
   if (object == slider_) {
     switch (event->type()) {
+      case QEvent::Paint:
+        if (PaintMoodbar(static_cast<QPaintEvent*>(event))) {
+          return true;
+        }
+        break;
+
       case QEvent::Resize:
-        // The widget was resized, we've got to render a new pixmap.
         moodbar_pixmap_dirty_ = true;
         break;
 
       case QEvent::ContextMenu:
-        ShowContextMenu(static_cast<QContextMenuEvent*>(event)->globalPos());
+        ShowContextMenu(
+            static_cast<QContextMenuEvent*>(event)->globalPos());
         return true;
 
       default:
@@ -157,6 +164,42 @@ bool MoodbarProxyStyle::eventFilter(QObject* object, QEvent* event) {
   }
 
   return QProxyStyle::eventFilter(object, event);
+}
+
+bool MoodbarProxyStyle::PaintMoodbar(QPaintEvent* event) {
+  if (state_ == MoodbarOff) return false;
+
+  QPainter painter(slider_);
+  painter.setClipRegion(event->region());
+
+  QStyleOptionSlider option;
+  option.initFrom(slider_);
+
+  option.orientation = slider_->orientation();
+  option.minimum = slider_->minimum();
+  option.maximum = slider_->maximum();
+  option.tickPosition = slider_->tickPosition();
+  option.tickInterval = slider_->tickInterval();
+  option.sliderPosition = slider_->sliderPosition();
+  option.sliderValue = slider_->value();
+  option.singleStep = slider_->singleStep();
+  option.pageStep = slider_->pageStep();
+
+  option.subControls =
+      QStyle::SC_SliderGroove | QStyle::SC_SliderHandle;
+  option.activeSubControls = QStyle::SC_None;
+
+  const Qt::LayoutDirection direction = option.direction;
+  option.upsideDown =
+      option.orientation == Qt::Horizontal
+          ? (slider_->invertedAppearance() ==
+             (direction == Qt::RightToLeft))
+          : !slider_->invertedAppearance();
+
+  option.direction = Qt::LeftToRight;
+
+  Render(QStyle::CC_Slider, &option, &painter, slider_);
+  return true;
 }
 
 void MoodbarProxyStyle::drawComplexControl(ComplexControl control,
