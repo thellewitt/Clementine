@@ -25,41 +25,91 @@
 
 const int MoodbarRenderer::kNumHues = 12;
 
-ColorVector MoodbarRenderer::Colors(const QByteArray& data, MoodbarStyle style,
+ColorVector MoodbarRenderer::Colors(const QByteArray& data,
+                                    MoodbarStyle style,
                                     const QPalette& palette) {
   const int samples = data.size() / 3;
 
-  // Set some parameters based on the moodbar style
+  // Keep thresholds at a minimum of 1 and avoid premature integer truncation.
+  const auto threshold = [samples](int multiplier) {
+    return qMax(1, (samples * multiplier) / 360);
+  };
+
   StyleProperties properties;
   switch (style) {
     case Style_Angry:
-      properties = StyleProperties(samples / 360 * 9, 45, -45, 200, 100);
+      // Warm hue sweep: orange -> deep red.
+      properties = StyleProperties(
+          threshold(9),
+          45,    // Range Start: Orange
+          -45,   // Range Delta: Deep red
+          200,   // Saturation
+          100);  // Brightness
       break;
+
     case Style_Euphoric:
-      properties = StyleProperties(samples / 360 * 3, 300, 180, 200, 255);
+      // Hue sweep: magenta -> gold/yellow through warm hues.
+      properties = StyleProperties(
+          threshold(3),
+          300,   // Range Start: Deep Magenta
+          120,   // Range Delta: Warm sweep to Gold
+          160,   // Saturation
+          240);  // Brightness
       break;
+
     case Style_Frozen:
-      properties = StyleProperties(samples / 360 * 1, 140, 160, 50, 100);
+      // Cool hue sweep: teal -> blue -> violet/magenta.
+      properties = StyleProperties(
+          threshold(1),
+          140,   // Range Start: Cool Teal
+          160,   // Range Delta: Cool sweep
+          50,    // Saturation
+          100);  // Brightness
       break;
+
     case Style_Happy:
-      properties = StyleProperties(samples / 360 * 2, 0, 359, 150, 250);
+      // Full hue spectrum with elevated saturation and brightness.
+      properties = StyleProperties(
+          threshold(2),
+          0,     // Range Start: Red
+          359,   // Range Delta: Full spectrum
+          150,   // Saturation
+          250);  // Brightness
       break;
+
     case Style_Neon:
-      properties = StyleProperties(samples / 360 * 3, 180, 240, 250, 255);
+      // Neon hue sweep: electric cyan -> hot pink.
+      properties = StyleProperties(
+          threshold(4),
+          180,   // Range Start: Electric Cyan
+          140,   // Range Delta: Blue -> Violet -> Magenta -> Pink
+          220,   // Saturation
+          255);  // Full brightness
       break;
+
     case Style_Normal:
-      properties = StyleProperties(samples / 360 * 3, 0, 359, 100, 100);
+      // Balanced full hue spectrum.
+      properties = StyleProperties(
+          threshold(3),
+          0,     // Range Start: Red
+          359,   // Range Delta: Full spectrum
+          100,   // Saturation
+          100);  // Brightness
       break;
+
     case Style_SystemPalette:
     default: {
       const QColor highlight_color(
           palette.color(QPalette::Active, QPalette::Highlight));
+      const int hue = highlight_color.hsvHue();
 
-      properties.threshold_ = samples / 360 * 3;
-      properties.range_start_ = (highlight_color.hsvHue() - 20 + 360) % 360;
-      properties.range_delta_ = 20;
-      properties.sat_ = highlight_color.hsvSaturation();
-      properties.val_ = highlight_color.value() / 2;
+      properties = StyleProperties(
+          threshold(3),
+          (hue - 20 + 360) % 360,
+          20,
+          highlight_color.hsvSaturation(),
+          highlight_color.value() / 2);
+      break;
     }
   }
 
@@ -72,8 +122,9 @@ ColorVector MoodbarRenderer::Colors(const QByteArray& data, MoodbarStyle style,
   memset(hue_distribution, 0, sizeof(hue_distribution));
 
   ColorVector colors;
+  colors.reserve(samples);
 
-  // Read the colors, keeping track of some histograms
+  // Read the colors, keeping track of histograms.
   for (int i = 0; i < samples; ++i) {
     QColor color;
     color.setRed(int(*data_p++));
@@ -82,30 +133,37 @@ ColorVector MoodbarRenderer::Colors(const QByteArray& data, MoodbarStyle style,
 
     colors << color;
 
-    const int hue = qMax(0, color.hue());
+    const int raw_hue = color.hue();
+    const int hue = (raw_hue < 0) ? 0 : raw_hue;
+
     if (hue_distribution[hue]++ == properties.threshold_) {
-      total++;
+      ++total;
     }
   }
 
   total = qMax(total, 1);
 
-  // Remap the hue values to be between rangeStart and
-  // rangeStart + rangeDelta.  Every time we see an input hue
-  // above the threshold, increment the output hue by
-  // (1/total) * rangeDelta.
-  for (int i = 0, n = 0; i < 360; i++) {
-    hue_distribution[i] =
+  // Remap hue values into the configured range.
+  // Negative deltas are normalized back into the 0-359 hue range.
+  for (int i = 0, n = 0; i < 360; ++i) {
+    int mapped_hue =
         ((hue_distribution[i] > properties.threshold_ ? n++ : n) *
              properties.range_delta_ / total +
          properties.range_start_) %
         360;
+
+    if (mapped_hue < 0) {
+      mapped_hue += 360;
+    }
+
+    hue_distribution[i] = mapped_hue;
   }
 
-  // Now huedist is a hue mapper: huedist[h] is the new hue value
-  // for a bar with hue h
+  // hue_distribution is now a hue mapper:
+  // hue_distribution[h] is the new hue value for a bar with hue h.
   for (ColorVector::iterator it = colors.begin(); it != colors.end(); ++it) {
-    const int hue = qMax(0, it->hue());
+    const int raw_hue = it->hue();
+    const int hue = (raw_hue < 0) ? 0 : raw_hue;
 
     *it = QColor::fromHsv(
         qBound(0, hue_distribution[hue], 359),
