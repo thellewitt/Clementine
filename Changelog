@@ -3,28 +3,43 @@ Version 1.4.1+mintian:
     * Reincarnate Clementine from the ashes.
     * Deploy Starfleet technology.
 
-  Other features:
-    * Add Mintian branding.
-    * Upgrade to Qt 6.10.2.
-    * Restore audio playback with renewed determination.
-    * Teach Clementine that MP4 files are, in fact, music-capable.
-    * Improve visualization support with projectM 4.2.0.
-    * Add and refine assorted Mintian audio enhancements.
-    * Integrate Starfleet technology into the audio subsystem.
-    * Introduce Enterprise-class ambient audio processing.
-    * Tune background effects for maximum warp-drive authenticity.
-    * Ensure the USS Clementine remains operational during extended
-      voyages through the Mintian audio sector.
+Other features:
+  * Add Mintian branding.
+  * Upgrade to Qt 6.11.2.
+  * Restore audio playback with renewed determination.
+  * Teach Clementine that MP4 files are, in fact, music-capable.
+  * Improve visualization support with projectM 4.2.0.
+  * Add and refine assorted Mintian audio enhancements.
+  * Integrate Starfleet technology into the audio subsystem.
+  * Introduce Enterprise-class ambient audio processing.
+  * Tune background effects for maximum warp-drive authenticity.
+  * Ensure the USS Clementine remains operational during extended
+  voyages through the Mintian audio sector.
+  * Improve moodbar rendering across Qt styles, including Kvantum,
+  qt6ct-kde, and Wayland environments.
+  * Improve file-type presentation by displaying the filename extension
+  when Clementine cannot otherwise identify the file type.
 
-  Bugfixes:
-    * Fix Cover Manager shenanigans.
-    * Fix message reply lifetime to prevent a particularly obnoxious
-      use-after-lifetime crash.
-    * Fix various GStreamer pipeline ailments, e.g. Tail-Blast and Haunted Jukebox.
-    * Fix the mysterious "now you see it, now you don't" crash.
-    * Fix assorted track progression weirdness.
-    * Fix Internal Data Stream Error by applying an entirely unrelated
-      problem patch and declaring victory.
+Bugfixes:
+  * Fix Cover Manager shenanigans.
+  * Fix message reply lifetime to prevent a particularly obnoxious
+  use-after-lifetime crash.
+  * Fix various GStreamer pipeline ailments, e.g. Tail-Blast and Haunted Jukebox.
+  * Fix the mysterious "now you see it, now you don't" crash.
+  * Fix assorted track progression weirdness.
+  * Fix projectM preset loading to prevent a GL context crash.
+  * Fix moodbar rendering being inadvertently defeated by Qt/KDE theming.
+  * Fix MP4 and MKV playback and progress tracking weirdness.
+  * Fix video-stream handling so visual data does not interfere with
+  audio playback.
+  * Fix playback completion handling to prevent premature pipeline
+  transitions and assorted song-to-song instability.
+  * Fix unknown file types being displayed as "Unknown" when a useful
+  filename extension is available.
+  * Fix playlist file-type display so it uses the resolved file-type
+  description rather than exposing the internal file-type enum.
+  * Fix Internal Data Stream Error by applying an entirely unrelated
+  problem patch and declaring victory.
 
 
 
