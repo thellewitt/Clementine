@@ -110,7 +110,7 @@ class Song {
     Type_Stream = 99,
   };
   static QString TextForFiletype(FileType type);
-  QString TextForFiletype() const { return TextForFiletype(filetype()); }
+  QString TextForFiletype() const;
   bool IsFileLossless() const;
 
   // Sort songs alphabetically using their pretty title

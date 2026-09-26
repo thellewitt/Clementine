@@ -303,13 +303,8 @@ QString LastPlayedItemDelegate::displayText(const QVariant& value,
 }
 
 QString FileTypeItemDelegate::displayText(const QVariant& value,
-                                          const QLocale& locale) const {
-  bool ok = false;
-  Song::FileType type = Song::FileType(value.toInt(&ok));
-
-  if (!ok) return tr("Unknown");
-
-  return Song::TextForFiletype(type);
+                                          const QLocale&) const {
+  return value.toString();
 }
 
 QWidget* TextItemDelegate::createEditor(QWidget* parent,

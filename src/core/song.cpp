@@ -458,6 +458,17 @@ QString Song::TextForFiletype(FileType type) {
   }
 }
 
+QString Song::TextForFiletype() const {
+  if (filetype() != Type_Unknown)
+    return TextForFiletype(filetype());
+
+  const QString suffix = QFileInfo(url().toLocalFile()).suffix();
+  if (!suffix.isEmpty())
+    return suffix.toUpper();
+
+  return TextForFiletype(Type_Unknown);
+}
+
 bool Song::IsFileLossless() const {
   switch (filetype()) {
     case Song::Type_Aiff:

@@ -354,7 +354,7 @@ QVariant Playlist::data(const QModelIndex& index, int role) const {
         case Column_Filesize:
           return song.filesize();
         case Column_Filetype:
-          return song.filetype();
+          return song.TextForFiletype();
         case Column_DateModified:
           return song.mtime();
         case Column_DateCreated:
