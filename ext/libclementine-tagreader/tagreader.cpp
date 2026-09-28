@@ -35,6 +35,7 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QFileInfo>
+#include <QMetaType>
 #include <QTextCodec>
 #include <QUrl>
 #include <QVector>
@@ -615,33 +616,33 @@ void TagReader::ParseFMPSFrame(const QString& name, const QString& value,
   QVariant var;
   if (name == "FMPS_Rating") {
     var = parser.result()[0][0];
-    if (var.type() == QVariant::Double) {
+    if (var.metaType().id() == QMetaType::Double) {
       song->set_rating(var.toDouble());
     }
   } else if (name == "FMPS_Rating_User") {
     // Take a user rating only if there's no rating already set
     if (song->rating() == -1 && parser.result()[0].count() >= 2) {
       var = parser.result()[0][1];
-      if (var.type() == QVariant::Double) {
+      if (var.metaType().id() == QMetaType::Double) {
         song->set_rating(var.toDouble());
       }
     }
   } else if (name == "FMPS_PlayCount") {
     var = parser.result()[0][0];
-    if (var.type() == QVariant::Double) {
+    if (var.metaType().id() == QMetaType::Double) {
       song->set_playcount(var.toDouble());
     }
   } else if (name == "FMPS_PlayCount_User") {
     // Take a user playcount only if there's no playcount already set
     if (song->playcount() == 0 && parser.result()[0].count() >= 2) {
       var = parser.result()[0][1];
-      if (var.type() == QVariant::Double) {
+      if (var.metaType().id() == QMetaType::Double) {
         song->set_playcount(var.toDouble());
       }
     }
   } else if (name == "FMPS_Rating_Amarok_Score") {
     var = parser.result()[0][0];
-    if (var.type() == QVariant::Double) {
+    if (var.metaType().id() == QMetaType::Double) {
       song->set_score(var.toFloat() * 100);
     }
   }

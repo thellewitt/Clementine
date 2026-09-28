@@ -19,7 +19,6 @@
 ***************************************************************************/
 
 #include "DeviceSyncResult_p.h"
-
 #include "qjsonwrapper/Json.h"
 
 using namespace mygpo;
@@ -75,7 +74,7 @@ QList<QString> DeviceSyncResultPrivate::notSynchronizedList() const
 
 bool DeviceSyncResultPrivate::parse( const QVariant& data )
 {
-    if( !data.canConvert( QVariant::Map ) )
+    if( !data.canConvert<QVariantMap>())
         return false;
     QVariantMap varMap = data.toMap();
     m_synchronized = varMap.value( QLatin1String( "synchronized" ) );

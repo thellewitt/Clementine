@@ -139,46 +139,57 @@ QUrl Podcast::mygpoUrl() const
     return d->mygpoUrl();
 }
 
-bool PodcastPrivate::parse( const QVariant& data )
+bool PodcastPrivate::parse(const QVariant& data)
 {
-    if ( !data.canConvert( QVariant::Map ) )
+    if (!data.canConvert<QVariantMap>())
         return false;
+
     QVariantMap podcastMap = data.toMap();
-    QVariant v = podcastMap.value( QLatin1String( "url" ) );
-    if ( !v.canConvert( QVariant::ByteArray ) )
+    QVariant v = podcastMap.value(QLatin1String("url"));
+
+    if (!v.canConvert<QByteArray>())
         return false;
+
     m_url = QUrl::fromEncoded(v.toByteArray(), QUrl::StrictMode);
-    if (!m_url.isValid()) { 
+    if (!m_url.isValid()) {
         return false;
     }
-    v = podcastMap.value( QLatin1String( "title" ) );
-    if ( !v.canConvert( QVariant::String ) )
+
+    v = podcastMap.value(QLatin1String("title"));
+    if (!v.canConvert<QString>())
         return false;
     m_title = v.toString();
-    v = podcastMap.value( QLatin1String( "description" ) );
-    if ( !v.canConvert( QVariant::String ) )
+
+    v = podcastMap.value(QLatin1String("description"));
+    if (!v.canConvert<QString>())
         return false;
     m_description = v.toString();
-    v = podcastMap.value( QLatin1String( "subscribers" ) );
-    if ( !v.canConvert( QVariant::Int ) )
+
+    v = podcastMap.value(QLatin1String("subscribers"));
+    if (!v.canConvert<int>())
         return false;
     m_subscribers = v.toUInt();
-    v = podcastMap.value( QLatin1String( "subscribers_last_week" ) );
-    if ( !v.canConvert( QVariant::Int ) )
+
+    v = podcastMap.value(QLatin1String("subscribers_last_week"));
+    if (!v.canConvert<int>())
         return false;
     m_SubscribersLastWeek = v.toUInt();
-    v = podcastMap.value( QLatin1String( "logo_url" ) );
-    if ( !v.canConvert( QVariant::Url ) )
+
+    v = podcastMap.value(QLatin1String("logo_url"));
+    if (!v.canConvert<QUrl>())
         return false;
     m_logoUrl = v.toUrl();
-    v = podcastMap.value( QLatin1String( "website" ) );
-    if ( !v.canConvert( QVariant::Url ) )
+
+    v = podcastMap.value(QLatin1String("website"));
+    if (!v.canConvert<QUrl>())
         return false;
     m_website = v.toUrl();
-    v = podcastMap.value( QLatin1String( "mygpo_link" ) );
-    if ( !v.canConvert( QVariant::Url ) )
+
+    v = podcastMap.value(QLatin1String("mygpo_link"));
+    if (!v.canConvert<QUrl>())
         return false;
     m_mygpoUrl = v.toUrl();
+
     return true;
 }
 

@@ -21,7 +21,6 @@
 ***************************************************************************/
 
 #include "Device.h"
-
 #include "Device_p.h"
 
 using namespace mygpo;
@@ -56,27 +55,28 @@ QString Device::type() const
     return d->type();
 }
 
-
 DevicePrivate::DevicePrivate( const QVariant& var ) : m_id(), m_caption(), m_type(), m_subscriptions( 0 )
 {
     parse( var );
 }
 
-bool DevicePrivate::parse( const QVariant& var )
+bool DevicePrivate::parse(const QVariant& var)
 {
-    if( var.canConvert( QVariant::Map ) )
+    if (var.canConvert<QVariantMap>())
     {
         QVariant vid, vcaption, vtype, vsubscriptions;
         QMap<QString, QVariant> varMap;
         varMap = var.toMap();
-        vid = varMap.value( QLatin1String( "id" ) );
-        vcaption = varMap.value( QLatin1String( "caption" ) );
-        vtype = varMap.value( QLatin1String( "type" ) );
-        vsubscriptions = varMap.value( QLatin1String( "subscriptions" ) );
-        if( vid.canConvert( QVariant::String ) &&
-                vcaption.canConvert( QVariant::String ) &&
-                vtype.canConvert( QVariant::String ) &&
-                vsubscriptions.canConvert( QVariant::LongLong ) )
+
+        vid = varMap.value(QLatin1String("id"));
+        vcaption = varMap.value(QLatin1String("caption"));
+        vtype = varMap.value(QLatin1String("type"));
+        vsubscriptions = varMap.value(QLatin1String("subscriptions"));
+
+        if (vid.canConvert<QString>() &&
+            vcaption.canConvert<QString>() &&
+            vtype.canConvert<QString>() &&
+            vsubscriptions.canConvert<qlonglong>())
         {
             m_id = vid.toString();
             m_caption = vcaption.toString();
@@ -85,9 +85,9 @@ bool DevicePrivate::parse( const QVariant& var )
             return true;
         }
     }
+
     return false;
 }
-
 
 QString DevicePrivate::caption() const
 {

@@ -21,7 +21,6 @@
 ***************************************************************************/
 
 #include "DeviceList_p.h"
-
 #include "qjsonwrapper/Json.h"
 
 using namespace mygpo;
@@ -52,21 +51,24 @@ void DeviceListPrivate::error( QNetworkReply::NetworkError error )
     emit q->requestError( error );
 }
 
-bool DeviceListPrivate::parse( const QVariant& data )
+bool DeviceListPrivate::parse(const QVariant& data)
 {
-    if( !data.canConvert( QVariant::List ) )
+    if (!data.canConvert<QVariantList>())
         return false;
 
     QVariantList varList = data.toList();
     QVariantList devList;
-    foreach( const QVariant & var, varList )
+
+    foreach (const QVariant& var, varList)
     {
-        DevicePtr ptr( new Device( var, this ) );
-        m_devicesList.append( ptr );
+        DevicePtr ptr(new Device(var, this));
+        m_devicesList.append(ptr);
+
         QVariant v;
-        v.setValue<DevicePtr>( DevicePtr( ptr ) );
-        devList.append( v );
+        v.setValue<DevicePtr>(DevicePtr(ptr));
+        devList.append(v);
     }
+
     m_devices = devList;
     return true;
 }

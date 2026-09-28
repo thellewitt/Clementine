@@ -21,7 +21,6 @@
 ***************************************************************************/
 
 #include "DeviceUpdates_p.h"
-
 #include "qjsonwrapper/Json.h"
 
 using namespace mygpo;
@@ -32,11 +31,9 @@ DeviceUpdatesPrivate::DeviceUpdatesPrivate( DeviceUpdates* qq, QNetworkReply* re
     QObject::connect( m_reply, SIGNAL( error( QNetworkReply::NetworkError ) ), this, SLOT( error( QNetworkReply::NetworkError ) ) );
 }
 
-
 DeviceUpdatesPrivate::~DeviceUpdatesPrivate()
 {
 }
-
 
 QVariant DeviceUpdatesPrivate::add() const
 {
@@ -59,15 +56,17 @@ QVariant DeviceUpdatesPrivate::remove() const
     return m_remove;
 }
 
-QList< QUrl > DeviceUpdatesPrivate::removeList() const
+QList<QUrl> DeviceUpdatesPrivate::removeList() const
 {
     QVariantList updateVarList = m_remove.toList();
     QList<QUrl> ret;
-    foreach( const QVariant & var, updateVarList )
+
+    foreach (const QVariant& var, updateVarList)
     {
-        if( var.canConvert( QVariant::Url ) )
-            ret.append( var.toUrl() );
+        if (var.canConvert<QUrl>())
+            ret.append(var.toUrl());
     }
+
     return ret;
 }
 
@@ -87,16 +86,20 @@ QList< EpisodePtr > DeviceUpdatesPrivate::updateList() const
     return ret;
 }
 
-bool DeviceUpdatesPrivate::parse( const QVariant& data )
+bool DeviceUpdatesPrivate::parse(const QVariant& data)
 {
-    if( !data.canConvert( QVariant::Map ) )
+    if (!data.canConvert<QVariantMap>())
         return false;
+
     QVariantMap varMap = data.toMap();
-    m_add = varMap.value( QLatin1String( "add" ) );
-    m_remove = varMap.value( QLatin1String( "remove" ) );
-    m_update = varMap.value( QLatin1String( "updates" ) );
-    if( varMap.value( QLatin1String( "timestamp" ) ).canConvert( QVariant::LongLong ) )
-        m_timestamp = varMap.value( QLatin1String( "timestamp" ) ).toLongLong();
+
+    m_add = varMap.value(QLatin1String("add"));
+    m_remove = varMap.value(QLatin1String("remove"));
+    m_update = varMap.value(QLatin1String("updates"));
+
+    if (varMap.value(QLatin1String("timestamp")).canConvert<qlonglong>())
+        m_timestamp = varMap.value(QLatin1String("timestamp")).toLongLong();
+
     return true;
 }
 
@@ -138,7 +141,6 @@ qulonglong DeviceUpdatesPrivate::timestamp() const
     return m_timestamp;
 }
 
-
 DeviceUpdates::DeviceUpdates( QNetworkReply* reply, QObject* parent ): QObject( parent ), d( new DeviceUpdatesPrivate( this, reply ) )
 {
 
@@ -148,7 +150,6 @@ DeviceUpdates::~DeviceUpdates()
 {
     delete d;
 }
-
 
 QVariant DeviceUpdates::add() const
 {

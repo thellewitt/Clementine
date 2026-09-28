@@ -21,12 +21,12 @@
 ***************************************************************************/
 
 #include "EpisodeAction_p.h"
-
 #include "qjsonwrapper/Json.h"
+#include <limits>
 
 using namespace mygpo;
 
-static qulonglong c_maxlonglong = (2^64)-1;
+static qulonglong c_maxlonglong = std::numeric_limits<qulonglong>::max();
 
 EpisodeActionPrivate::EpisodeActionPrivate( EpisodeAction* qq, const QVariant& variant, QObject* parent ) : QObject( parent ), q( qq )
 {
@@ -45,44 +45,45 @@ EpisodeActionPrivate::~EpisodeActionPrivate()
 
 }
 
-bool EpisodeActionPrivate::parse( const QVariant& data )
+bool EpisodeActionPrivate::parse(const QVariant& data)
 {
-    if( !data.canConvert( QVariant::Map ) )
+    if (!data.canConvert<QVariantMap>())
         return false;
+
     QVariantMap episodeActionMap = data.toMap();
 
-    QVariant s = episodeActionMap.value( QLatin1String( "podcast" ) );
-    if( !s.canConvert( QVariant::Url ) )
+    QVariant s = episodeActionMap.value(QLatin1String("podcast"));
+    if (!s.canConvert<QUrl>())
         return false;
     m_podcastUrl = s.toUrl();
 
-    s = episodeActionMap.value( QLatin1String( "episode" ) );
-    if( !s.canConvert( QVariant::Url ) )
+    s = episodeActionMap.value(QLatin1String("episode"));
+    if (!s.canConvert<QUrl>())
         return false;
     m_episodeUrl = s.toUrl();
 
-    if( episodeActionMap.contains( QLatin1String( "device" ) ) )
+    if (episodeActionMap.contains(QLatin1String("device")))
     {
-        s = episodeActionMap.value( QLatin1String( "device" ) );
-        if( !s.canConvert( QVariant::String ) )
+        s = episodeActionMap.value(QLatin1String("device"));
+        if (!s.canConvert<QString>())
             return false;
         m_deviceName = s.toString();
     }
     else
     {
-        m_deviceName = QLatin1String( "" );
+        m_deviceName = QLatin1String("");
     }
 
-    s = episodeActionMap.value( QLatin1String( "action" ) );
-    if( !s.canConvert( QVariant::String ) )
+    s = episodeActionMap.value(QLatin1String("action"));
+    if (!s.canConvert<QString>())
         return false;
-    if( !parseActionType( s.toString() ) )
+    if (!parseActionType(s.toString()))
         return false;
 
-    if( episodeActionMap.contains( QLatin1String( "started" ) ) )
+    if (episodeActionMap.contains(QLatin1String("started")))
     {
-        s = episodeActionMap.value( QLatin1String( "started" ) );
-        if( !s.canConvert( QVariant::ULongLong ) )
+        s = episodeActionMap.value(QLatin1String("started"));
+        if (!s.canConvert<qulonglong>())
             return false;
         m_started = s.toULongLong();
     }
@@ -91,10 +92,10 @@ bool EpisodeActionPrivate::parse( const QVariant& data )
         m_started = 0;
     }
 
-    if( episodeActionMap.contains( QLatin1String( "position" ) ) )
+    if (episodeActionMap.contains(QLatin1String("position")))
     {
-        s = episodeActionMap.value( QLatin1String( "position" ) );
-        if( !s.canConvert( QVariant::ULongLong ) )
+        s = episodeActionMap.value(QLatin1String("position"));
+        if (!s.canConvert<qulonglong>())
             return false;
         m_position = s.toULongLong();
     }
@@ -103,10 +104,10 @@ bool EpisodeActionPrivate::parse( const QVariant& data )
         m_position = 0;
     }
 
-    if( episodeActionMap.contains( QLatin1String( "total" ) ) )
+    if (episodeActionMap.contains(QLatin1String("total")))
     {
-        s = episodeActionMap.value( QLatin1String( "total" ) );
-        if( !s.canConvert( QVariant::ULongLong ) )
+        s = episodeActionMap.value(QLatin1String("total"));
+        if (!s.canConvert<qulonglong>())
             return false;
         m_total = s.toULongLong();
     }
@@ -115,9 +116,9 @@ bool EpisodeActionPrivate::parse( const QVariant& data )
         m_total = 0;
     }
 
-    if( episodeActionMap.contains( QLatin1String( "timestamp" ) ) )
+    if (episodeActionMap.contains(QLatin1String("timestamp")))
     {
-        s = episodeActionMap.value( QLatin1String( "timestamp" ) );
+        s = episodeActionMap.value(QLatin1String("timestamp"));
         m_timestamp = s.toULongLong();
     }
     else

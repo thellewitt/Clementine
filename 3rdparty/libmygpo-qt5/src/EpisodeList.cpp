@@ -21,7 +21,6 @@
 ***************************************************************************/
 
 #include "EpisodeList_p.h"
-
 #include "qjsonwrapper/Json.h"
 
 using namespace mygpo;
@@ -52,22 +51,24 @@ QVariant EpisodeListPrivate::episodes() const
     return m_episodes;
 }
 
-bool EpisodeListPrivate::parse( const QVariant& data )
+bool EpisodeListPrivate::parse(const QVariant& data)
 {
-    if( !data.canConvert( QVariant::List ) )
+    if (!data.canConvert<QVariantList>())
         return false;
+
     QVariantList varList = data.toList();
     QVariantList episodeList;
-    foreach( QVariant var, varList )
+
+    foreach (QVariant var, varList)
     {
         QVariant v;
-        v.setValue<mygpo::EpisodePtr> ( EpisodePtr( new Episode( var ) ) );
-        episodeList.append( v );
+        v.setValue<mygpo::EpisodePtr>(EpisodePtr(new Episode(var)));
+        episodeList.append(v);
     }
-    m_episodes = QVariant( episodeList );
+
+    m_episodes = QVariant(episodeList);
     return true;
 }
-
 
 bool EpisodeListPrivate::parse( const QByteArray& data )
 {
@@ -102,9 +103,6 @@ void EpisodeListPrivate::error( QNetworkReply::NetworkError error )
     emit q->requestError( error );
 }
 
-
-
-
 EpisodeList::EpisodeList( QNetworkReply* reply, QObject* parent ) : QObject( parent ), d( new EpisodeListPrivate( this, reply ) )
 {
 
@@ -114,7 +112,6 @@ QVariant EpisodeList::episodes() const
 {
     return d->episodes();
 }
-
 
 QList< EpisodePtr > EpisodeList::list() const
 {

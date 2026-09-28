@@ -59,7 +59,6 @@ qobject2qvariant( const QObject* object )
 #endif
 }
 
-
 void
 qvariant2qobject( const QVariantMap& variant, QObject* object )
 {
@@ -71,9 +70,9 @@ qvariant2qobject( const QVariantMap& variant, QObject* object )
         if ( property.isValid() )
         {
             QVariant value = iter.value();
-            if ( value.canConvert( property.type() ) )
+            if ( value.canConvert( property.metaType() ) )
             {
-                value.convert( property.type() );
+                value.convert( property.metaType() );
                 object->setProperty( iter.key().toLatin1(), value );
             } else if ( QString( QLatin1String("QVariant") ).compare( QLatin1String( property.typeName() ) ) == 0 ) {
                 object->setProperty( iter.key().toLatin1(), value );
@@ -84,7 +83,6 @@ qvariant2qobject( const QVariantMap& variant, QObject* object )
     QJson::QObjectHelper::qvariant2qobject( variant, object );
 #endif
 }
-
 
 QVariant
 parseJson( const QByteArray& jsonData, bool* ok )
@@ -102,7 +100,6 @@ parseJson( const QByteArray& jsonData, bool* ok )
     return p.parse( jsonData, ok );
 #endif
 }
-
 
 QByteArray
 toJson( const QVariant &variant, bool* ok )

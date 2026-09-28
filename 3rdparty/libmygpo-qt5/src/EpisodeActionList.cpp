@@ -21,7 +21,6 @@
 ***************************************************************************/
 
 #include "EpisodeActionList_p.h"
-
 #include "qjsonwrapper/Json.h"
 
 using namespace mygpo;
@@ -52,39 +51,45 @@ QVariant EpisodeActionListPrivate::episodeActions() const
     return m_episodeActions;
 }
 
-bool EpisodeActionListPrivate::parse( const QVariant& data )
+bool EpisodeActionListPrivate::parse(const QVariant& data)
 {
-    if( !data.canConvert( QVariant::Map ) )
+    if (!data.canConvert<QVariantMap>())
         return false;
+
     QVariantMap episodeActionListMap = data.toMap();
 
-    QVariant s = episodeActionListMap.value( QLatin1String( "timestamp" ) );
-    if( !s.canConvert( QVariant::ULongLong ) )
+    QVariant s = episodeActionListMap.value(QLatin1String("timestamp"));
+    if (!s.canConvert<qulonglong>())
         return false;
     m_timestamp = s.toULongLong();
 
-    s = episodeActionListMap.value( QLatin1String( "actions" ) );
-    if( !s.canConvert( QVariant::List ) )
+    s = episodeActionListMap.value(QLatin1String("actions"));
+    if (!s.canConvert<QVariantList>())
         return false;
 
     QVariantList varList = s.toList();
     QVariantList episodeActionList;
-    foreach( QVariant var, varList )
+
+    foreach (QVariant var, varList)
     {
         QVariant v;
-        EpisodeAction* episodeActionTmpPtr = new EpisodeAction( var );
-        if ( episodeActionTmpPtr->property("valid").toBool() )
+        EpisodeAction* episodeActionTmpPtr = new EpisodeAction(var);
+
+        if (episodeActionTmpPtr->property("valid").toBool())
         {
-            v.setValue<mygpo::EpisodeActionPtr> ( mygpo::EpisodeActionPtr( episodeActionTmpPtr ) );
-            episodeActionList.append( v );
+            v.setValue<mygpo::EpisodeActionPtr>(
+                mygpo::EpisodeActionPtr(episodeActionTmpPtr));
+            episodeActionList.append(v);
         }
         else
+        {
             delete episodeActionTmpPtr;
+        }
     }
-    m_episodeActions = QVariant( episodeActionList );
+
+    m_episodeActions = QVariant(episodeActionList);
     return true;
 }
-
 
 bool EpisodeActionListPrivate::parse( const QByteArray& data )
 {

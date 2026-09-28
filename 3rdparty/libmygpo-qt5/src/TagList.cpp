@@ -21,7 +21,6 @@
 ***************************************************************************/
 
 #include "TagList_p.h"
-
 #include "qjsonwrapper/Json.h"
 
 using namespace mygpo;
@@ -52,19 +51,22 @@ QVariant TagListPrivate::tags() const
     return m_tags;
 }
 
-bool TagListPrivate::parse( const QVariant& data )
+bool TagListPrivate::parse(const QVariant& data)
 {
-    if( !data.canConvert( QVariant::List ) )
+    if (!data.canConvert<QVariantList>())
         return false;
+
     QVariantList varList = data.toList();
     QVariantList tagList;
-    foreach( QVariant var, varList )
+
+    foreach (QVariant var, varList)
     {
         QVariant v;
-        v.setValue<mygpo::TagPtr>( TagPtr( new Tag( var ) ) );
-        tagList.append( v );
+        v.setValue<mygpo::TagPtr>(TagPtr(new Tag(var)));
+        tagList.append(v);
     }
-    m_tags = QVariant( tagList );
+
+    m_tags = QVariant(tagList);
     return true;
 }
 

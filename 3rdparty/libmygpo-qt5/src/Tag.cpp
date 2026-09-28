@@ -39,18 +39,24 @@ uint TagPrivate::usage() const
     return m_usage;
 }
 
-bool TagPrivate::parse( const QVariant& data )
+bool TagPrivate::parse(const QVariant& data)
 {
-    if( !data.canConvert( QVariant::Map ) )
+    if (!data.canConvert<QVariantMap>())
         return false;
+
     QVariantMap tagMap = data.toMap();
-    QVariant v = tagMap.value( QLatin1String( "tag" ) );
-    if( !v.canConvert( QVariant::String ) )
+    QVariant v = tagMap.value(QLatin1String("tag"));
+
+    if (!v.canConvert<QString>())
         return false;
+
     m_tag = v.toString();
-    v = tagMap.value( QLatin1String( "usage" ) );
-    if( !v.canConvert( QVariant::UInt ) )
+
+    v = tagMap.value(QLatin1String("usage"));
+
+    if (!v.canConvert<uint>())
         return false;
+
     m_usage = v.toUInt();
     return true;
 }

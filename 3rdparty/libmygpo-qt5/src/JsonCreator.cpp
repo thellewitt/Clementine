@@ -20,11 +20,12 @@
 * USA                                                                      *
 ***************************************************************************/
 
-//#include <QVariant>
+#include <QVariant>
 #include <QList>
 #include <QUrl>
 #include <QString>
 #include <QDateTime>
+#include <limits>
 
 #include "JsonCreator.h"
 
@@ -32,7 +33,7 @@
 
 using namespace mygpo;
 
-static qulonglong c_maxlonglong = (2^64)-1;
+static qulonglong c_maxlonglong = std::numeric_limits<qulonglong>::max();
 
 QByteArray JsonCreator::addRemoveSubsToJSON( const QList< QUrl >& add, const QList< QUrl >& remove )
 {

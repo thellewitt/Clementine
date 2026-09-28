@@ -21,7 +21,6 @@
 ***************************************************************************/
 
 #include "PodcastList_p.h"
-
 #include "qjsonwrapper/Json.h"
 
 using namespace mygpo;
@@ -53,19 +52,22 @@ QVariant PodcastListPrivate::podcasts() const
     return m_podcasts;
 }
 
-bool PodcastListPrivate::parse( const QVariant& data )
+bool PodcastListPrivate::parse(const QVariant& data)
 {
-    if( !data.canConvert( QVariant::List ) )
+    if (!data.canConvert<QVariantList>())
         return false;
+
     QVariantList varList = data.toList();
     QVariantList podcastList;
-    foreach( QVariant var, varList )
+
+    foreach (QVariant var, varList)
     {
         QVariant v;
-        v.setValue<mygpo::PodcastPtr> ( PodcastPtr( new Podcast( var ) ) );
-        podcastList.append( v );
+        v.setValue<mygpo::PodcastPtr>(PodcastPtr(new Podcast(var)));
+        podcastList.append(v);
     }
-    m_podcasts = QVariant( podcastList );
+
+    m_podcasts = QVariant(podcastList);
     return true;
 }
 
