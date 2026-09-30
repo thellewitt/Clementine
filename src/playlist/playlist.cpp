@@ -652,20 +652,11 @@ int Playlist::dynamic_history_length() const {
 void Playlist::set_current_row(int i, bool is_stopping) {
   QModelIndex old_current_item_index = current_item_index_;
 
-  qLog(Info) << "Playlist::set_current_row:"
-             << " old_row=" << old_current_item_index.row()
-             << " new_row=" << i
-             << " old_url="
-             << (old_current_item_index.isValid()
-                     ? item_at(old_current_item_index.row())->Url()
-                     : QUrl())
-             << " new_url="
-             << (i >= 0 && i < items_.count() ? item_at(i)->Url() : QUrl())
-             << " is_stopping=" << is_stopping;
-
   ClearStreamMetadata();
 
   current_item_index_ = QPersistentModelIndex(index(i, 0, QModelIndex()));
+
+  const bool was_queued = i >= 0 && i == queue_->PeekNext();
 
   // if the given item is the first in the queue, remove it from the queue
   if (current_item_index_.row() == queue_->PeekNext()) {
@@ -693,7 +684,19 @@ void Playlist::set_current_row(int i, bool is_stopping) {
     virtual_items_.prepend(i);
     current_virtual_index_ = 0;
   } else if (is_shuffled_) {
-    current_virtual_index_ = virtual_items_.indexOf(i);
+    const int virtual_index = virtual_items_.indexOf(i);
+
+    if (was_queued && current_virtual_index_ >= 0 &&
+        virtual_index > current_virtual_index_) {
+      const int new_index = current_virtual_index_ + 1;
+
+      if (virtual_index != new_index) {
+        virtual_items_.move(virtual_index, new_index);
+      }
+      current_virtual_index_ = new_index;
+    } else if (!was_queued) {
+      current_virtual_index_ = virtual_index;
+    }
   } else {
     current_virtual_index_ = i;
   }
