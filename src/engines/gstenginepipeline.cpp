@@ -224,33 +224,43 @@ bool GstEnginePipeline::AddEnterpriseResource(const QUrl& url) {
   GstElement* decoder = engine_->CreateElement("decodebin");
   GstElement* convert = engine_->CreateElement("audioconvert");
   GstElement* resample = engine_->CreateElement("audioresample");
+  GstElement* capsfilter = engine_->CreateElement("capsfilter");
   GstElement* volume = engine_->CreateElement("volume");
-  GstElement* echo = engine_->CreateElement("audioecho");
 
-  if (!source || !decoder || !convert || !resample || !volume || !echo) {
-    qLog(Error) << id() << "Could not create Enterprise audio elements";
+  if (!source || !decoder || !convert || !resample ||
+      !capsfilter || !volume) {
+    qLog(Error) << id()
+                << "Could not create Enterprise audio elements";
 
     if (source) gst_object_unref(source);
     if (decoder) gst_object_unref(decoder);
     if (convert) gst_object_unref(convert);
     if (resample) gst_object_unref(resample);
+    if (capsfilter) gst_object_unref(capsfilter);
     if (volume) gst_object_unref(volume);
-    if (echo) gst_object_unref(echo);
 
     gst_object_unref(mixer);
     return false;
   }
 
-  gst_element_set_name(convert, "enterprise-convert");
-
   g_object_set(G_OBJECT(volume),
                "volume", 1.0,
                nullptr);
 
-  g_object_set(G_OBJECT(echo),
-               "intensity", 0.15,
-               "delay", static_cast<gint64>(120000000),
+  GstCaps* enterprise_caps =
+      gst_caps_new_simple(
+          "audio/x-raw",
+          "format", G_TYPE_STRING, "F32LE",
+          "rate", G_TYPE_INT, 44100,
+          "channels", G_TYPE_INT, 2,
+          "layout", G_TYPE_STRING, "interleaved",
+          nullptr);
+
+  g_object_set(G_OBJECT(capsfilter),
+               "caps", enterprise_caps,
                nullptr);
+
+  gst_caps_unref(enterprise_caps);
 
   g_object_set(G_OBJECT(source),
                "location", url.toLocalFile().toUtf8().constData(),
@@ -264,9 +274,20 @@ bool GstEnginePipeline::AddEnterpriseResource(const QUrl& url) {
                    decoder,
                    convert,
                    resample,
+                   capsfilter,
                    volume,
-                   echo,
                    nullptr);
+
+  /*
+   * Associate this decoder with this specific converter.
+   * The decoder owns a reference to the converter through
+   * its GObject data until the association is destroyed.
+   */
+  g_object_set_data_full(
+      G_OBJECT(decoder),
+      "enterprise-convert",
+      gst_object_ref(convert),
+      gst_object_unref);
 
   if (!gst_element_link(source, decoder)) {
     qLog(Error) << id()
@@ -277,8 +298,8 @@ bool GstEnginePipeline::AddEnterpriseResource(const QUrl& url) {
                         decoder,
                         convert,
                         resample,
+                        capsfilter,
                         volume,
-                        echo,
                         nullptr);
 
     gst_object_unref(mixer);
@@ -287,8 +308,8 @@ bool GstEnginePipeline::AddEnterpriseResource(const QUrl& url) {
 
   if (!gst_element_link_many(convert,
                              resample,
+                             capsfilter,
                              volume,
-                             echo,
                              nullptr)) {
     qLog(Error) << id()
                 << "Could not link Enterprise audio chain";
@@ -298,8 +319,8 @@ bool GstEnginePipeline::AddEnterpriseResource(const QUrl& url) {
                         decoder,
                         convert,
                         resample,
+                        capsfilter,
                         volume,
-                        echo,
                         nullptr);
 
     gst_object_unref(mixer);
@@ -308,23 +329,30 @@ bool GstEnginePipeline::AddEnterpriseResource(const QUrl& url) {
 
   GstPad* mixer_pad =
       gst_element_request_pad_simple(mixer, "sink_%u");
-  GstPad* echo_pad =
-      gst_element_get_static_pad(echo, "src");
 
-  if (!mixer_pad || !echo_pad) {
+  GstPad* volume_pad =
+      gst_element_get_static_pad(volume, "src");
+
+  if (!mixer_pad || !volume_pad) {
     qLog(Error) << id()
                 << "Could not obtain Enterprise mixer pads";
 
-    if (mixer_pad) gst_object_unref(mixer_pad);
-    if (echo_pad) gst_object_unref(echo_pad);
+    if (volume_pad) {
+      gst_object_unref(volume_pad);
+    }
+
+    if (mixer_pad) {
+      gst_element_release_request_pad(mixer, mixer_pad);
+      gst_object_unref(mixer_pad);
+    }
 
     gst_bin_remove_many(GST_BIN(uridecodebin_),
                         source,
                         decoder,
                         convert,
                         resample,
+                        capsfilter,
                         volume,
-                        echo,
                         nullptr);
 
     gst_object_unref(mixer);
@@ -332,28 +360,47 @@ bool GstEnginePipeline::AddEnterpriseResource(const QUrl& url) {
   }
 
   GstPadLinkReturn link_ret =
-      gst_pad_link(echo_pad, mixer_pad);
+      gst_pad_link(volume_pad, mixer_pad);
 
-  gst_object_unref(echo_pad);
-  gst_object_unref(mixer_pad);
-  gst_object_unref(mixer);
+  GstCaps* volume_caps =
+      gst_pad_get_current_caps(volume_pad);
+
+  GstCaps* mixer_caps =
+      gst_pad_get_current_caps(mixer_pad);
+
+  if (volume_caps) {
+    gst_caps_unref(volume_caps);
+  }
+
+  if (mixer_caps) {
+    gst_caps_unref(mixer_caps);
+  }
+
+  gst_object_unref(volume_pad);
 
   if (link_ret != GST_PAD_LINK_OK) {
     qLog(Error) << id()
                 << "Could not link Enterprise audio to mixer:"
                 << link_ret;
 
+    gst_element_release_request_pad(mixer, mixer_pad);
+    gst_object_unref(mixer_pad);
+    gst_object_unref(mixer);
+
     gst_bin_remove_many(GST_BIN(uridecodebin_),
                         source,
                         decoder,
                         convert,
                         resample,
+                        capsfilter,
                         volume,
-                        echo,
                         nullptr);
 
     return false;
   }
+
+  gst_object_unref(mixer_pad);
+  gst_object_unref(mixer);
 
   CHECKED_GCONNECT(G_OBJECT(decoder),
                    "pad-added",
@@ -362,8 +409,8 @@ bool GstEnginePipeline::AddEnterpriseResource(const QUrl& url) {
 
   gst_element_sync_state_with_parent(convert);
   gst_element_sync_state_with_parent(resample);
+  gst_element_sync_state_with_parent(capsfilter);
   gst_element_sync_state_with_parent(volume);
-  gst_element_sync_state_with_parent(echo);
   gst_element_sync_state_with_parent(decoder);
   gst_element_sync_state_with_parent(source);
 
@@ -381,7 +428,9 @@ void GstEnginePipeline::EnterprisePadCallback(
   }
 
   if (!caps || gst_caps_is_empty(caps)) {
-    if (caps) gst_caps_unref(caps);
+    if (caps) {
+      gst_caps_unref(caps);
+    }
     return;
   }
 
@@ -393,38 +442,53 @@ void GstEnginePipeline::EnterprisePadCallback(
     return;
   }
 
-  GstElement* convert =
-      gst_bin_get_by_name(GST_BIN(instance->uridecodebin_),
-                          "enterprise-convert");
+  GstElement* convert = GST_ELEMENT(
+      g_object_get_data(G_OBJECT(element),
+                        "enterprise-convert"));
 
   if (!convert) {
     qLog(Error) << instance->id()
-                << "Could not find Enterprise converter";
+                << "Could not find Enterprise converter for decoder";
     gst_caps_unref(caps);
     return;
   }
 
-  GstPad* sink = gst_element_get_static_pad(convert, "sink");
+  GstPad* sink =
+    gst_element_get_static_pad(convert, "sink");
 
-  if (!sink) {
-    qLog(Error) << instance->id()
-                << "Could not obtain Enterprise converter sink pad";
-    gst_object_unref(convert);
-    gst_caps_unref(caps);
-    return;
-  }
+if (!sink) {
+  qLog(Error) << instance->id()
+              << "Could not obtain Enterprise converter sink pad";
+  gst_caps_unref(caps);
+  return;
+}
 
-  if (GST_PAD_IS_LINKED(sink)) {
-    gst_object_unref(sink);
-    gst_object_unref(convert);
-    gst_caps_unref(caps);
-    return;
-  }
+if (GST_PAD_IS_LINKED(sink)) {
+  gst_object_unref(sink);
+  gst_caps_unref(caps);
+  return;
+}
 
-  gst_pad_link(pad, sink);
+GstPadLinkReturn link_ret =
+    gst_pad_link(pad, sink);
+
+GstCaps* sink_caps = gst_pad_query_caps(sink, nullptr);
+GstPad* src_pad = gst_element_get_static_pad(convert, "src");
+GstCaps* src_caps = src_pad
+    ? gst_pad_query_caps(src_pad, nullptr)
+    : nullptr;
+
+if (sink_caps) gst_caps_unref(sink_caps);
+if (src_caps) gst_caps_unref(src_caps);
+if (src_pad) gst_object_unref(src_pad);
+
+if (link_ret != GST_PAD_LINK_OK) {
+  qLog(Error) << instance->id()
+              << "Could not link Enterprise decoder to converter:"
+              << link_ret;
+}
 
   gst_object_unref(sink);
-  gst_object_unref(convert);
   gst_caps_unref(caps);
 }
 

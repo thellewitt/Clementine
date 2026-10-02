@@ -20,6 +20,9 @@
 
 #include "settingspage.h"
 
+#include <QHash>
+
+class QCheckBox;
 class Ui_BackgroundStreamsSettingsPage;
 
 class BackgroundStreamsSettingsPage : public SettingsPage {
@@ -35,12 +38,15 @@ class BackgroundStreamsSettingsPage : public SettingsPage {
  private slots:
   void EnableStream(bool enabled);
   void StreamVolumeChanged(int value);
+  void StreamStarted(const QString& name);
+  void StreamStopped(const QString& name);
 
  private:
   void AddStream(const QString& name);
 
  private:
   Ui_BackgroundStreamsSettingsPage* ui_;
+  QHash<QString, QCheckBox*> checks_;
 };
 
 #endif  // BACKGROUNDSTREAMSSETTINGSPAGE_H

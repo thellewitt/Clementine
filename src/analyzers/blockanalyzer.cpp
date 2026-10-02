@@ -511,7 +511,7 @@ void BlockAnalyzer::paletteChange(const QPalette&) {
   bgdark = bg.darker(112);
 
   if (psychedelic_enabled_)
-    fg = getPsychedelicColor(scope_, 10, 75);
+    fg = getPsychedelicColor(scope_, 50, 0);
   else
     fg = ensureContrast(bg, palette().color(QPalette::Highlight));
 
@@ -540,7 +540,8 @@ void BlockAnalyzer::paletteChange(const QPalette&) {
     int h, s, v;
 
     bg.darker(150).getHsv(&h, &s, &v);
-    fg = QColor::fromHsv(h + 120, s, v);
+    h = (h + 120) % 360;
+    fg = QColor::fromHsv(h, s, v);
 
     const float r = 1.f * bgdark.red();
     const float g = 1.f * bgdark.green();
@@ -555,7 +556,8 @@ void BlockAnalyzer::paletteChange(const QPalette&) {
     for (uint y = 0; y < kFadeSize; ++y) {
       const float lrY = 1.f - (frlogFscl * log10f(fFscl - y));
       fade_bars_[y] =
-          qRgba(static_cast<int>(r + lrY * dr), static_cast<int>(g + lrY * dg),
+          qRgba(static_cast<int>(r + lrY * dr),
+                static_cast<int>(g + lrY * dg),
                 static_cast<int>(b + lrY * db), 255);
     }
   }

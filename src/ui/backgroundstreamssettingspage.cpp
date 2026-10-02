@@ -19,6 +19,7 @@
 
 #include <QCheckBox>
 #include <QGroupBox>
+#include <QSignalBlocker>
 
 #include "core/backgroundstreams.h"
 #include "iconloader.h"
@@ -31,6 +32,14 @@ BackgroundStreamsSettingsPage::BackgroundStreamsSettingsPage(
   ui_->setupUi(this);
   setWindowIcon(
       IconLoader::Load("weather-showers-scattered", IconLoader::Base));
+
+  connect(dialog->background_streams(),
+          SIGNAL(StreamStarted(QString)),
+          SLOT(StreamStarted(QString)));
+
+  connect(dialog->background_streams(),
+          SIGNAL(StreamStopped(QString)),
+          SLOT(StreamStopped(QString)));
 
   for (const QString& name : dialog->background_streams()->streams()) {
     AddStream(name);
@@ -65,6 +74,8 @@ void BackgroundStreamsSettingsPage::AddStream(const QString& name) {
   slider->setProperty("stream_name", name);
   check->setProperty("stream_name", name);
 
+  checks_[name] = check;
+
   connect(slider, SIGNAL(valueChanged(int)), SLOT(StreamVolumeChanged(int)));
   connect(check, SIGNAL(toggled(bool)), SLOT(EnableStream(bool)));
 
@@ -80,4 +91,26 @@ void BackgroundStreamsSettingsPage::EnableStream(bool enabled) {
 void BackgroundStreamsSettingsPage::StreamVolumeChanged(int value) {
   const QString name = sender()->property("stream_name").toString();
   dialog()->background_streams()->SetStreamVolume(name, value);
+}
+
+void BackgroundStreamsSettingsPage::StreamStarted(
+    const QString& name) {
+  QCheckBox* check = checks_.value(name, nullptr);
+  if (!check) {
+    return;
+  }
+
+  QSignalBlocker blocker(check);
+  check->setChecked(true);
+}
+
+void BackgroundStreamsSettingsPage::StreamStopped(
+    const QString& name) {
+  QCheckBox* check = checks_.value(name, nullptr);
+  if (!check) {
+    return;
+  }
+
+  QSignalBlocker blocker(check);
+  check->setChecked(false);
 }

@@ -96,24 +96,19 @@ const char* GstEngine::kHypnotoadPipeline =
     "equalizer-10bands "
     "band0=-24 band1=-3 band2=7.5 band3=12 band4=8 "
     "band5=6 band6=5 band7=6 band8=0 band9=-24";
+
 const char* GstEngine::kEnterprisePipeline = R"(
     audiomixer name=dynamic !
-    audioecho intensity=0.12 delay=300000000 !
-    audioecho intensity=0.030 delay=650000000 !
-    audiocheblimit mode=0 cutoff=1800 !
     equalizer-10bands
-    band0=12 band1=12 band2=10 band3=6 band4=2
-    band5=0 band6=-6 band7=-12 band8=-20 band9=-24 !
+      band0=8.0   band1=6.0   band2=1.0   band3=-4.0  band4=-8.0
+      band5=-12.0 band6=-16.0 band7=-20.0 band8=-24.0 band9=-24.0 !
     audioconvert ! audioresample
-    audiotestsrc wave=red-noise volume=0.30 !
-    audiowsinclimit mode=low-pass cutoff=55 length=501 ! dynamic.
-    audiotestsrc wave=triangle freq=33.0 volume=0.08 ! dynamic.
-    audiotestsrc wave=triangle freq=33.02 volume=0.045 ! dynamic.
-    audiotestsrc wave=triangle freq=68.0 volume=0.06 ! dynamic.
-    audiotestsrc wave=triangle freq=70.0 volume=0.06 ! dynamic.
-    audiotestsrc wave=pink-noise volume=0.08 !
-    audiowsinclimit mode=high-pass cutoff=1200 length=301 !
-    audiowsinclimit mode=low-pass cutoff=2000 length=301 ! dynamic.
+    audiotestsrc wave=red-noise volume=0.15 !
+    audiowsinclimit mode=low-pass cutoff=45 length=401 ! dynamic.
+    audiotestsrc wave=sine freq=24.0 volume=0.08 ! dynamic.
+    audiotestsrc wave=sine freq=48.0 volume=0.10 ! dynamic.
+    audiotestsrc wave=sine freq=48.6 volume=0.09 ! dynamic.
+    audiotestsrc wave=sine freq=96.0 volume=0.04 ! dynamic.
 )";
 
 GstEngine::GstEngine(Application* app)
