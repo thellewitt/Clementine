@@ -320,6 +320,8 @@ set(SOURCES
   songinfo/artistinfoview.cpp
   songinfo/collapsibleinfoheader.cpp
   songinfo/collapsibleinfopane.cpp
+  songinfo/lastfmtrackinfoprovider.cpp
+  songinfo/lrcparser.cpp
   songinfo/songinfobase.cpp
   songinfo/songinfofetcher.cpp
   songinfo/songinfoprovider.cpp
@@ -328,10 +330,12 @@ set(SOURCES
   songinfo/songinfoview.cpp
   songinfo/songkickconcerts.cpp
   songinfo/songkickconcertwidget.cpp
+  songinfo/songlyricsfetcher.cpp
   songinfo/songplaystats.cpp
   songinfo/spotifyimages.cpp
   songinfo/streamdiscoverer.cpp
   songinfo/taglyricsinfoprovider.cpp
+  songinfo/tagwidget.cpp
   songinfo/ultimatelyricslyric.cpp
   songinfo/ultimatelyricsprovider.cpp
   songinfo/ultimatelyricsreader.cpp
@@ -630,6 +634,8 @@ set(HEADERS
   songinfo/artistinfoview.h
   songinfo/collapsibleinfoheader.h
   songinfo/collapsibleinfopane.h
+  songinfo/lastfmtrackinfoprovider.h
+  songinfo/lrcparser.h
   songinfo/songinfobase.h
   songinfo/songinfofetcher.h
   songinfo/songinfoprovider.h
@@ -638,10 +644,12 @@ set(HEADERS
   songinfo/songinfoview.h
   songinfo/songkickconcerts.h
   songinfo/songkickconcertwidget.h
+  songinfo/songlyricsfetcher.h
   songinfo/songplaystats.h
   songinfo/spotifyimages.h
   songinfo/streamdiscoverer.h
   songinfo/taglyricsinfoprovider.h
+  songinfo/tagwidget.h
   songinfo/ultimatelyricslyric.h
   songinfo/ultimatelyricsprovider.h
   songinfo/ultimatelyricsreader.h

@@ -162,3 +162,16 @@ add_test_file(sqlite_test.cpp false)
 #if(LINUX AND HAVE_DBUS)
 #  add_test_file(mpris1_test.cpp true)
 #endif(LINUX AND HAVE_DBUS)
+
+add_executable(ultimatelyrics_probe
+  EXCLUDE_FROM_ALL
+  ultimatelyrics_probe.cpp
+  ../data/data.qrc
+)
+
+target_link_libraries(ultimatelyrics_probe
+  clementine_lib
+  test_utils
+  Qt6::Test
+  test_main
+)

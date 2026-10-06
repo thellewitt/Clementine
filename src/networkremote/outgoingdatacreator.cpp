@@ -96,20 +96,16 @@ void OutgoingDataCreator::CheckEnabledProviders() {
   QVariantList default_order;
   default_order << "lyrics.wikia.com"
                 << "lyricstime.com"
-                << "lyricsreg.com"
                 << "lyricsmania.com"
-                << "azlyrics.com"
                 << "songlyrics.com"
                 << "elyrics.net"
-                << "lyricsdownload.com"
                 << "lyrics.com"
                 << "lyricsbay.com"
                 << "directlyrics.com"
                 << "teksty.org"
                 << "tekstowo.pl (Polish translations)"
                 << "vagalume.uol.com.br"
-                << "vagalume.uol.com.br (Portuguese translations)"
-                << "darklyrics.com";
+                << "vagalume.uol.com.br (Portuguese translations)";
 
   QVariant saved_order = s.value("search_order", default_order);
   for (const QVariant& name : saved_order.toList()) {

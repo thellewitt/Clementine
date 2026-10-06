@@ -67,6 +67,12 @@ void UltimateLyricsProvider::RequestFinished(QNetworkReply* reply,
                                              const QString& orig_url, int id) {
   reply->deleteLater();
 
+  const int status =
+    reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
+    qLog(Debug) << name_ << "HTTP status:" << status
+                << "URL:" << reply->url();
+
   if (reply->error() != QNetworkReply::NoError) {
     qLog(Debug) << "Reply error" << reply->errorString();
     url_hop_ = false;
@@ -151,7 +157,7 @@ void UltimateLyricsProvider::RequestFinished(QNetworkReply* reply,
     lyrics = original_content;
   }
 
-  if (!lyrics.isEmpty() and HTMLHasAlphaNumeric(lyrics)) {
+      if (!lyrics.isEmpty() and HTMLHasAlphaNumeric(lyrics)) {
     CollapsibleInfoPane::Data data;
     data.id_ = "ultimatelyrics/" + name_;
     data.title_ = tr("Lyrics from %1").arg(name_);
@@ -169,7 +175,10 @@ void UltimateLyricsProvider::RequestFinished(QNetworkReply* reply,
     }
 
     emit InfoReady(id, data);
+  } else {
+    qLog(Debug) << name_ << "returned no extractable lyrics";
   }
+
   url_hop_ = false;
   emit Finished(id);
 }
@@ -336,6 +345,5 @@ bool UltimateLyricsProvider::HTMLHasAlphaNumeric(const QString& html) {
     else if (c == QChar('>'))
       in_tag = false;
   }
-  qLog(Debug) << html;
   return false;
 }

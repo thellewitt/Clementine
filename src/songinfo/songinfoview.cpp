@@ -27,6 +27,7 @@
 #include "songinfo/lastfmtrackinfoprovider.h"
 #include "songinfo/songinfoprovider.h"
 #include "songinfo/taglyricsinfoprovider.h"
+#include "songinfo/songlyricsfetcher.h"
 #include "songinfo/ultimatelyricsprovider.h"
 #include "songinfo/ultimatelyricsreader.h"
 
@@ -44,6 +45,7 @@ SongInfoView::SongInfoView(QWidget* parent)
 
   fetcher_->AddProvider(new LastfmTrackInfoProvider);
   fetcher_->AddProvider(new TagLyricsInfoProvider);
+  fetcher_->AddProvider(new LrcLibLyricsProvider);
 }
 
 SongInfoView::~SongInfoView() {}
@@ -87,20 +89,16 @@ void SongInfoView::ReloadSettings() {
 
   QVariantList default_order;
   default_order << "lyrics.wikia.com"
-                << "lyricsreg.com"
                 << "lyricsmania.com"
-                << "azlyrics.com"
                 << "songlyrics.com"
                 << "elyrics.net"
-                << "lyricsdownload.com"
                 << "lyrics.com"
                 << "lyricsbay.com"
                 << "directlyrics.com"
                 << "teksty.org"
                 << "tekstowo.pl (Polish translations)"
                 << "vagalume.uol.com.br"
-                << "vagalume.uol.com.br (Portuguese translations)"
-                << "darklyrics.com";
+                << "vagalume.uol.com.br (Portuguese translations)";
 
   QVariant saved_order = s.value("search_order", default_order);
   for (const QVariant& name : saved_order.toList()) {
