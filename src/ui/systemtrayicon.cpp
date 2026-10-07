@@ -20,6 +20,7 @@
 #include <QApplication>
 #include <QEvent>
 #include <QPainter>
+#include <QPalette>
 #include <QSystemTrayIcon>
 #include <QWheelEvent>
 #include <QWidget>
@@ -90,7 +91,9 @@ QPixmap SystemTrayIcon::CreateIcon(const QPixmap& icon,
   // panel's colour can't be asked for, so it's taken to follow the theme,
   // except where it's known always to be dark.
   const bool dark =
-      PanelIsAlwaysDark() || Appearance::IsDarkPalette(QApplication::palette());
+      PanelIsAlwaysDark() ||
+      QApplication::palette().color(QPalette::WindowText).lightness() >
+        QApplication::palette().color(QPalette::Window).lightness();
   const qreal size = ret.width() / ret.devicePixelRatio();
   const qreal diameter = size * 0.55;
   const QRectF badge(size - diameter, size - diameter, diameter, diameter);
