@@ -30,6 +30,7 @@
 #include "core/database.h"
 #include "core/lazy.h"
 #include "core/player.h"
+#include "core/sleepinhibitor.h"
 #include "core/tagreaderclient.h"
 #include "core/taskmanager.h"
 #include "covers/albumcoverloader.h"
@@ -69,7 +70,7 @@ const char* Application::kDefaultPortableDataDir = "clementine-data";
 const char* Application::kPortableDataDir = nullptr;
 const char* Application::kDebugFeaturesKey = "CLEMENTINE_DEBUG";
 const QStringList Application::kDefaultMusicExtensionsAllowedRemotely = {
-    "aac", "alac", "flac", "m3u", "m4a", "mp3", "ogg", "wav", "wmv"};
+    "aac", "alac", "flac", "m3u", "m4a", "mp3", "mp4", "ogg", "wav", "wmv"};
 
 // Use CLEMENTINE_DEBUG=1 to enable debug features.
 bool Application::DebugFeaturesEnabled() {
@@ -161,7 +162,13 @@ class ApplicationImpl {
             },
             [=](NetworkRemote* remote) { remote->deleteLater(); }),
         network_remote_helper_([=]() { return new NetworkRemoteHelper(app); }),
-        scrobbler_([=]() { return new LastFMService(app, app); }) {
+        scrobbler_([=]() { return new LastFMService(app, app); }),
+        sleep_inhibitor_([=]() {
+          SleepInhibitor* inhibitor = new SleepInhibitor(app);
+          QObject::connect(app, SIGNAL(SettingsChanged()), inhibitor,
+                           SLOT(ReloadSettings()));
+          return inhibitor;
+        }) {
   }
 
   QTimer settings_timer_;
@@ -191,6 +198,7 @@ class ApplicationImpl {
   Lazy<NetworkRemote> network_remote_;
   Lazy<NetworkRemoteHelper> network_remote_helper_;
   Lazy<Scrobbler> scrobbler_;
+  Lazy<SleepInhibitor> sleep_inhibitor_;
 };
 
 Application::Application(QObject* parent)
@@ -363,6 +371,10 @@ PodcastUpdater* Application::podcast_updater() const {
 }
 
 Scrobbler* Application::scrobbler() const { return p_->scrobbler_.get(); }
+
+SleepInhibitor* Application::sleep_inhibitor() const {
+  return p_->sleep_inhibitor_.get();
+}
 
 TagReaderClient* Application::tag_reader_client() const {
   return p_->tag_reader_client_.get();

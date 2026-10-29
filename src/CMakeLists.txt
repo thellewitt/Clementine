@@ -112,6 +112,7 @@ set(SOURCES
   core/scopedtransaction.cpp
   core/settingsprovider.cpp
   core/signalchecker.cpp
+  core/sleepinhibitor.cpp
   core/song.cpp
   core/songloader.cpp
   core/songpathparser.cpp
@@ -384,7 +385,6 @@ set(SOURCES
   ui/organiseerrordialog.cpp
   ui/playbacksettingspage.cpp
   ui/qtsystemtrayicon.cpp
-  ui/screensaver.cpp
   ui/settingscategory.cpp
   ui/settingsdialog.cpp
   ui/settingspage.cpp
@@ -460,6 +460,7 @@ set(HEADERS
   core/organise.h
   core/player.h
   core/qtfslistener.h
+  core/sleepinhibitor.h
   core/songloader.h
   core/tagreaderclient.h
   core/taskmanager.h
@@ -920,11 +921,11 @@ optional_source(APPLE
   SOURCES
     core/macfslistener.mm
     core/macglobalshortcutbackend.mm
+    core/macsleepinhibitor.cpp
     core/mac_startup.mm
     engines/osxdevicefinder.cpp
     networkremote/bonjour.mm
     ui/globalshortcutgrabber.mm
-    ui/macscreensaver.cpp
     ui/macsystemtrayicon.mm
     widgets/osd_mac.mm
   HEADERS
@@ -945,9 +946,9 @@ endif()
 # Platform specific - Windows
 optional_source(WIN32
   SOURCES
+    core/windowssleepinhibitor.cpp
     engines/directsounddevicefinder.cpp
     networkremote/tinysvcmdns.cpp
-    ui/windowsscreensaver.cpp
     widgets/osd_win.cpp
   INCLUDE_DIRECTORIES
     ${CMAKE_SOURCE_DIR}/3rdparty/tinysvcmdns
@@ -1064,8 +1065,9 @@ optional_source(HAVE_DBUS
     core/mpris.cpp
     core/mpris2.cpp
     networkremote/avahi.cpp
-    ui/dbusscreensaver.cpp
+    core/dbussleepinhibitor.cpp
   HEADERS
+    core/dbussleepinhibitor.h
     core/mpris.h
     core/mpris2.h
 )
