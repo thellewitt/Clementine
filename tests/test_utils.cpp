@@ -21,6 +21,7 @@
 #include <QNetworkRequest>
 #include <QString>
 #include <QUrl>
+#include <QDebug>
 
 std::ostream& operator<<(std::ostream& stream, const QString& str) {
   stream << str.toStdString();
@@ -57,10 +58,17 @@ void PrintTo(const ::QUrl& url, std::ostream& os) {
 TemporaryResource::TemporaryResource(const QString& filename) {
   setFileTemplate(QDir::tempPath() + "/clementine_test-XXXXXX." +
                   filename.section('.', -1, -1));
-  open();
+  if (!open()) {
+    qFatal("Failed to create temporary test resource '%s': %s",
+           qPrintable(filename), qPrintable(errorString()));
+  }
 
   QFile resource(filename);
-  resource.open(QIODevice::ReadOnly);
+  if (!resource.open(QIODevice::ReadOnly)) {
+    qFatal("Failed to open test resource '%s': %s",
+           qPrintable(filename), qPrintable(resource.errorString()));
+  }
+
   write(resource.readAll());
 
   reset();
