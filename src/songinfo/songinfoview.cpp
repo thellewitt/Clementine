@@ -33,6 +33,12 @@
 
 const char* SongInfoView::kSettingsGroup = "SongInfo";
 
+QStringList SongInfoView::DefaultProviderOrder() {
+  QStringList ret;
+  ret << "genius.com";
+  return ret;
+}
+
 SongInfoView::SongInfoView(QWidget* parent)
     : SongInfoBase(parent), ultimate_reader_(new UltimateLyricsReader(this)) {
   // Parse the ultimate lyrics xml file in the background
@@ -84,21 +90,23 @@ void SongInfoView::ReloadSettings() {
   QSettings s;
   s.beginGroup(kSettingsGroup);
 
+  const bool use_lrclib =
+    s.value(QStringLiteral("use_lrclib"), true).toBool();
+
+  for (auto* provider : fetcher_->providers()) {
+    if (provider->name() == QStringLiteral("LRCLIB")) {
+      provider->set_enabled(use_lrclib);
+      break;
+    }
+  }
+
   // Put the providers in the right order
   QList<SongInfoProvider*> ordered_providers;
 
   QVariantList default_order;
-  default_order << "lyrics.wikia.com"
-                << "lyricsmania.com"
-                << "songlyrics.com"
-                << "elyrics.net"
-                << "lyrics.com"
-                << "lyricsbay.com"
-                << "directlyrics.com"
-                << "teksty.org"
-                << "tekstowo.pl (Polish translations)"
-                << "vagalume.uol.com.br"
-                << "vagalume.uol.com.br (Portuguese translations)";
+  for (const QString& name : DefaultProviderOrder()) {
+    default_order << name;
+  }
 
   QVariant saved_order = s.value("search_order", default_order);
   for (const QVariant& name : saved_order.toList()) {

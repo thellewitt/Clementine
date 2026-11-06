@@ -103,6 +103,7 @@ class UltimateLyricsProvider : public SongInfoProvider {
   Song metadata_;
   int redirect_count_;
   bool url_hop_;
+  int url_hop_rule_index_ = -1;
 };
 
 #endif  // ULTIMATELYRICSPROVIDER_H

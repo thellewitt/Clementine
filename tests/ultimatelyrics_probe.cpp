@@ -1,10 +1,10 @@
 #include <QApplication>
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QHash>
 #include <QTextDocument>
 #include <QTextEdit>
-#include <QElapsedTimer>
 #include <QTimer>
 
 #include "songinfo/ultimatelyricsreader.h"
@@ -29,11 +29,11 @@ int main(int argc, char** argv) {
   qDebug() << "Loaded providers:" << providers.size();
 
   Song song;
-  song.Init("Heart of Glass", "Blondie",
-            "Parallel Lines",
-            348LL * 1'000'000'000LL);
+  song.Init("Yellow", "Coldplay", "Parachutes", 348LL * 1'000'000'000LL);
 
   QHash<SongInfoProvider*, ProviderResult> results;
+  QHash<SongInfoProvider*, qint64> started_ms;
+
   QElapsedTimer timer;
   timer.start();
 
@@ -48,7 +48,6 @@ int main(int argc, char** argv) {
           Q_UNUSED(id);
 
           ProviderResult& result = results[provider];
-
           QString lyrics;
 
           if (data.contents_) {
@@ -77,7 +76,8 @@ int main(int argc, char** argv) {
 
           if (!result.finished) {
             result.finished = true;
-            result.elapsed_ms = timer.elapsed();
+            result.elapsed_ms =
+                timer.elapsed() - started_ms.value(provider);
           }
 
           bool all_finished = true;
@@ -99,11 +99,25 @@ int main(int argc, char** argv) {
 
   for (SongInfoProvider* provider : providers) {
     qDebug() << "Starting:" << provider->name();
+
+    started_ms.insert(provider, timer.elapsed());
     provider->FetchInfo(1, song);
   }
 
   QTimer::singleShot(5000, [&]() {
     qDebug() << "5-second sweep timeout";
+
+    const qint64 elapsed = timer.elapsed();
+
+    for (SongInfoProvider* provider : providers) {
+      ProviderResult& result = results[provider];
+
+      if (!result.finished) {
+        result.elapsed_ms =
+            elapsed - started_ms.value(provider);
+      }
+    }
+
     app.quit();
   });
 

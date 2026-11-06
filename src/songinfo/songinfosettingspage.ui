@@ -98,6 +98,16 @@
        </widget>
       </item>
       <item>
+       <widget class="QCheckBox" name="use_lrclib">
+        <property name="text">
+         <string>Use LRCLIB</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
        <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
          <widget class="QListWidget" name="providers"/>
@@ -121,6 +131,13 @@
             </property>
             <property name="text">
              <string>Move down</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="reset_providers">
+            <property name="text">
+             <string>Reset Song Providers</string>
             </property>
            </widget>
           </item>

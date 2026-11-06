@@ -35,6 +35,8 @@ SongInfoSettingsPage::SongInfoSettingsPage(SettingsDialog* dialog)
 
   connect(ui_->up, SIGNAL(clicked()), SLOT(MoveUp()));
   connect(ui_->down, SIGNAL(clicked()), SLOT(MoveDown()));
+  connect(ui_->reset_providers, SIGNAL(clicked()),
+          SLOT(ResetSongProviders()));
   connect(ui_->providers,
           SIGNAL(currentItemChanged(QListWidgetItem*, QListWidgetItem*)),
           SLOT(CurrentItemChanged(QListWidgetItem*)));
@@ -60,6 +62,10 @@ void SongInfoSettingsPage::Load() {
       s.value("font_size", SongInfoTextView::kDefaultFontSize).toReal());
   s.endGroup();
 
+  s.beginGroup(SongInfoView::kSettingsGroup);
+  ui_->use_lrclib->setChecked(s.value("use_lrclib", true).toBool());
+  s.endGroup();
+
   QList<const UltimateLyricsProvider*> providers =
       dialog()->song_info_view()->lyric_providers();
 
@@ -83,6 +89,7 @@ void SongInfoSettingsPage::Save() {
   s.endGroup();
 
   s.beginGroup(SongInfoView::kSettingsGroup);
+  s.setValue("use_lrclib", ui_->use_lrclib->isChecked());
   QVariantList search_order;
   for (int i = 0; i < ui_->providers->count(); ++i) {
     const QListWidgetItem* item = ui_->providers->item(i);
@@ -112,6 +119,45 @@ void SongInfoSettingsPage::Move(int d) {
   QListWidgetItem* item = ui_->providers->takeItem(row);
   ui_->providers->insertItem(row + d, item);
   ui_->providers->setCurrentRow(row + d);
+}
+
+void SongInfoSettingsPage::ResetSongProviders() {
+  const QStringList default_order = SongInfoView::DefaultProviderOrder();
+  const QList<const UltimateLyricsProvider*> providers =
+      dialog()->song_info_view()->lyric_providers();
+
+  // Reset LRCLIB to its recommended default.
+  ui_->use_lrclib->setChecked(true);
+
+  // Rebuild only the provider list. Leave appearance controls untouched.
+  ui_->providers->clear();
+
+  auto add_provider = [this](const UltimateLyricsProvider* provider,
+                             bool enabled) {
+    QListWidgetItem* item = new QListWidgetItem(ui_->providers);
+    item->setText(provider->name());
+    item->setCheckState(enabled ? Qt::Checked : Qt::Unchecked);
+    item->setForeground(
+        enabled ? palette().color(QPalette::Active, QPalette::Text)
+                : palette().color(QPalette::Disabled, QPalette::Text));
+  };
+
+  // Add the recommended providers first, in their default order.
+  for (const QString& name : default_order) {
+    for (const UltimateLyricsProvider* provider : providers) {
+      if (provider->name() == name) {
+        add_provider(provider, true);
+        break;
+      }
+    }
+  }
+
+  // Keep every other provider available, but disabled.
+  for (const UltimateLyricsProvider* provider : providers) {
+    if (!default_order.contains(provider->name())) {
+      add_provider(provider, false);
+    }
+  }
 }
 
 void SongInfoSettingsPage::ItemChanged(QListWidgetItem* item) {

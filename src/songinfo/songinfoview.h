@@ -19,7 +19,7 @@
 #define SONGINFOVIEW_H
 
 #include <memory>
-
+#include <QStringList>
 #include "songinfobase.h"
 // Needed complete (not just forward-declared) so that Qt6's automatic
 // metatype registration for the UltimateLyricsParsed(QFuture<QList<
@@ -37,6 +37,7 @@ class SongInfoView : public SongInfoBase {
   SongInfoView(QWidget* parent = nullptr);
   ~SongInfoView();
 
+  static QStringList DefaultProviderOrder();
   static const char* kSettingsGroup;
 
   QList<const UltimateLyricsProvider*> lyric_providers() const;

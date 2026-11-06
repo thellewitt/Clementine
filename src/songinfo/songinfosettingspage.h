@@ -39,6 +39,7 @@ class SongInfoSettingsPage : public SettingsPage {
   void MoveUp();
   void MoveDown();
   void Move(int d);
+  void ResetSongProviders();
 
   void CurrentItemChanged(QListWidgetItem* item);
   void ItemChanged(QListWidgetItem* item);
