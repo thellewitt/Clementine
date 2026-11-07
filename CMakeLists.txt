@@ -301,8 +301,8 @@ option(USE_SYSTEM_PROJECTM "Use system-installed projectM 4.x library instead of
 
 if(HAVE_VISUALISATIONS)
   if(USE_SYSTEM_PROJECTM)
-    find_package(projectM4 QUIET)
-    find_package(projectM4Playlist QUIET)
+    find_package(projectM4 4.2 QUIET)
+    find_package(projectM4Playlist 4.2 QUIET)
   endif()
 
   if(projectM4_FOUND AND projectM4Playlist_FOUND)
