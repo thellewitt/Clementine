@@ -1,3 +1,18 @@
+Version 1.4.2+mintian:
+  Major features:
+    * Redesign lyrics lookup with LRCLIB as the primary provider.
+    * Add configurable LRCLIB support and refine backup lyrics-provider handling.
+
+  Other features:
+    * Add an "Added in the last 30 days" smart playlist.
+    * Require projectM 4.2 or newer when using system-installed libraries.
+
+  Bugfixes:
+    * Fix switching to the Search, Library, and Internet tabs.
+    * Improve lyrics-provider fallback and lookup reliability.
+
+
+
 Version 1.4.1+mintian:
   Major features:
     * Reincarnate Clementine from the ashes.
