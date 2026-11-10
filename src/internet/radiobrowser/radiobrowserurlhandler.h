@@ -36,6 +36,9 @@ class RadioBrowserUrlHandler : public UrlHandler {
   QIcon icon() const;
   LoadResult StartLoading(const QUrl& url);
 
+  void ResolveUrl(const QUrl& url,
+                  ResolveCallback callback) const override;
+
  private slots:
   void LoadStationFinished(const QUrl& original_url, const Song& song);
   void LoadStationFailed(const QUrl& original_url);

@@ -131,7 +131,7 @@ const char* RadioBrowserService::kServiceName = "Radio-Browser.info";
 const char* RadioBrowserService::kSettingsGroup = "RadioBrowser";
 const char* RadioBrowserService::kSchemeName = "radiobrowser";
 const char* RadioBrowserService::defaultServer =
-    "http://all.api.radio-browser.info";
+    "https://all.api.radio-browser.info";
 
 RadioBrowserService::RadioBrowserService(Application* app,
                                          InternetModel* parent)
@@ -409,7 +409,9 @@ void RadioBrowserService::Search(int search_id, const QString& query,
   });
 }
 
-void RadioBrowserService::ResolveStationUrl(const QUrl& original_url) {
+void RadioBrowserService::ResolveStationUrl(
+    const QUrl& original_url,
+    std::function<void(const QUrl&)> callback) {
   QString determined_url =
       StationDetailsUrl.arg(main_server_url_, original_url.path());
   QUrl url(determined_url);
@@ -417,28 +419,49 @@ void RadioBrowserService::ResolveStationUrl(const QUrl& original_url) {
   QNetworkReply* reply = network_->get(QNetworkRequest(url));
   int task_id = app_->task_manager()->StartTask(tr("Getting station"));
 
-  connect(reply, &QNetworkReply::finished, [=] {
+  connect(reply, &QNetworkReply::finished, [=, this] {
     app_->task_manager()->SetTaskFinished(task_id);
     reply->deleteLater();
-    QJsonDocument document = ParseJsonReply(reply);
 
-    StreamList list;
+    QJsonDocument document = ParseJsonReply(reply);
     QJsonArray contents = document.array();
+
+    if (contents.isEmpty()) {
+      if (callback) {
+        callback(QUrl());
+      } else {
+        emit StationUrlResolveFailed(original_url);
+      }
+      return;
+    }
+
     QJsonObject item = contents.first().toObject();
-    if (item.isEmpty()) {
-      emit StationUrlResolveFailed(original_url);
+
+    QUrl stream_url(item["url_resolved"].toString());
+    if (stream_url.isEmpty()) {
+      stream_url.setUrl(item["url"].toString());
+    }
+
+    if (stream_url.isEmpty()) {
+      if (callback) {
+        callback(QUrl());
+      } else {
+        emit StationUrlResolveFailed(original_url);
+      }
       return;
     }
 
     Song ret;
     ret.set_valid(true);
     ret.set_title(item["name"].toString());
-    QUrl url(item["url_resolved"].toString());
-    if (url.isEmpty()) url.setUrl(item["url"].toString());
-    ret.set_url(url);
+    ret.set_url(stream_url);
     ret.set_art_automatic(item["favicon"].toString());
 
-    emit StreamMetadataFound(original_url, ret);
+    if (callback) {
+      callback(stream_url);
+    } else {
+      emit StreamMetadataFound(original_url, ret);
+    }
   });
 }
 

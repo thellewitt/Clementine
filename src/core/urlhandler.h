@@ -25,6 +25,8 @@
 #include <QObject>
 #include <QUrl>
 
+#include <functional>
+
 class UrlHandler : public QObject {
   Q_OBJECT
 
@@ -77,6 +79,16 @@ class UrlHandler : public QObject {
   // Called by the Player when a song starts loading - gives the handler
   // a chance to do something clever to get a playable track.
   virtual LoadResult StartLoading(const QUrl& url) = 0;
+
+  using ResolveCallback = std::function<void(LoadResult)>;
+
+  // Resolve a URL without initiating playback.
+  virtual void ResolveUrl(const QUrl& url,
+                          ResolveCallback callback) const {
+    if (callback) {
+      callback(LoadResult(url, LoadResult::Error));
+    }
+  }
 
   // Called by the player when a song finishes - gives the handler a chance to
   // get another track to play.

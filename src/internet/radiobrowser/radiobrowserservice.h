@@ -20,6 +20,7 @@
 
 #include <QJsonObject>
 #include <QMenu>
+#include <functional>
 
 #include "core/cachedlist.h"
 #include "internet/core/internetmodel.h"
@@ -77,7 +78,9 @@ class RadioBrowserService : public InternetService {
   PlaylistItem::Options playlistitem_options() const override;
 
   void Search(int search_id, const QString& query, const int limit);
-  void ResolveStationUrl(const QUrl& original_url);
+  void ResolveStationUrl(
+      const QUrl& original_url,
+      std::function<void(const QUrl&)> callback = {});
 
  signals:
   void SearchFinished(int search_id, RadioBrowserService::StreamList streams);

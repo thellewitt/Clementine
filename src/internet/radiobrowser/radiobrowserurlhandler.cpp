@@ -45,6 +45,21 @@ UrlHandler::LoadResult RadioBrowserUrlHandler::StartLoading(const QUrl& url) {
   return LoadResult(url, LoadResult::WillLoadAsynchronously);
 }
 
+void RadioBrowserUrlHandler::ResolveUrl(
+    const QUrl& url, ResolveCallback callback) const {
+  service_->ResolveStationUrl(
+      url, [url, callback](const QUrl& media_url) {
+        if (!callback) return;
+
+        if (media_url.isEmpty()) {
+          callback(LoadResult(url, LoadResult::Error));
+          return;
+        }
+
+        callback(LoadResult(url, LoadResult::TrackAvailable, media_url));
+      });
+}
+
 void RadioBrowserUrlHandler::LoadStationFailed(const QUrl& original_url) {
   qLog(Error) << "Error loading" << original_url;
   emit AsyncLoadComplete(LoadResult(original_url, LoadResult::Error));

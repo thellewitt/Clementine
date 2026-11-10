@@ -2024,8 +2024,25 @@ void MainWindow::DiscoverStreamDetails() {
   int row = playlist_menu_index_.row();
   Song song = app_->playlist_manager()->current()->item_at(row)->Metadata();
 
-  QString url = song.url().toString();
-  stream_discoverer_->Discover(url);
+  const QUrl url = song.url();
+  const UrlHandler* handler = app_->player()->HandlerForUrl(url);
+
+  if (!handler) {
+    stream_discoverer_->Discover(url.toString());
+    return;
+  }
+
+  handler->ResolveUrl(url, [this](const UrlHandler::LoadResult& result) {
+    if (result.type_ != UrlHandler::LoadResult::TrackAvailable ||
+        result.media_url_.isEmpty()) {
+      ShowErrorDialog(
+          tr("Could not resolve stream URL for %1")
+              .arg(result.original_url_.toString()));
+      return;
+    }
+
+    stream_discoverer_->Discover(result.media_url_.toString());
+  });
 }
 
 void MainWindow::ShowStreamDetails(const StreamDetails& details) {
