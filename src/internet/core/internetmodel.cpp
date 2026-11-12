@@ -411,7 +411,10 @@ void InternetModel::ShowService(InternetService* service) {
   if (!shown_services_[service].shown) {
     QStandardItem* item = shown_services_[service].item;
     int pos = FindItemPosition(item->text());
+
+    item->setData(true, Role_CanLazyLoad);
     invisibleRootItem()->insertRow(pos, item);
+
     shown_services_[service].shown = true;
   }
 }

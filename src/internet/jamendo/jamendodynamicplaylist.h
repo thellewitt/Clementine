@@ -3,6 +3,7 @@
    Copyright 2010, 2014, John Maguire <john.maguire@gmail.com>
    Copyright 2011, Arnaud Bienner <arnaud.bienner@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +22,7 @@
 #ifndef INTERNET_JAMENDO_JAMENDODYNAMICPLAYLIST_H_
 #define INTERNET_JAMENDO_JAMENDODYNAMICPLAYLIST_H_
 
+#include <QSet>
 #include "smartplaylists/generator.h"
 
 class JamendoDynamicPlaylist : public smart_playlists::Generator {
@@ -36,6 +38,15 @@ class JamendoDynamicPlaylist : public smart_playlists::Generator {
     OrderBy_RatingWeek = 1,
     OrderBy_RatingMonth = 2,
     OrderBy_Listened = 3,
+    OrderBy_RandomMix = 4,
+    OrderBy_Electronic = 5,
+    OrderBy_IndieAlternative = 6,
+    OrderBy_DreamPopAtmosphere = 7,
+    OrderBy_LoungeDowntempo = 8,
+    OrderBy_AcousticStorytellers = 9,
+    OrderBy_JazzAfterHours = 10,
+    OrderBy_WorldGrooves = 11,
+    OrderBy_DynamicDiscovery = 12,
   };
 
   // These values are persisted - only add to the end
@@ -60,7 +71,7 @@ class JamendoDynamicPlaylist : public smart_playlists::Generator {
   PlaylistItemList GenerateMore(int count);
 
  private:
-  void Fetch();
+  bool Fetch();
   static QString OrderSpec(OrderBy by, OrderDirection dir);
 
  private:
@@ -70,8 +81,11 @@ class JamendoDynamicPlaylist : public smart_playlists::Generator {
   int current_page_;
   PlaylistItemList current_items_;
   int current_index_;
+  bool exhausted_;
 
-  static const int kPageSize = 100;
+  QSet<QString> seen_track_ids_;
+
+  static const int kPageSize = 20;
   static const int kApiRetryLimit = 5;
   static const char* kUrl;
 };

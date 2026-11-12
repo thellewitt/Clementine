@@ -88,6 +88,21 @@ void MergedProxyModel::DeleteAllMappings() {
 
 void MergedProxyModel::AddSubModel(const QModelIndex& source_parent,
                                    QAbstractItemModel* submodel) {
+  auto existing = merge_points_.find(submodel);
+  if (existing != merge_points_.end()) {
+    if (*existing == source_parent) return;
+
+    QModelIndex proxy_parent = mapFromSource(source_parent);
+    const int rows = submodel->rowCount();
+
+    if (rows) beginInsertRows(proxy_parent, 0, rows - 1);
+
+    *existing = source_parent;
+
+    if (rows) endInsertRows();
+    return;
+  }
+
   connect(submodel, SIGNAL(modelAboutToBeReset()), this,
           SLOT(SubModelAboutToBeReset()));
   connect(submodel, SIGNAL(modelReset()), this, SLOT(SubModelReset()));

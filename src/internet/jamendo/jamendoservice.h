@@ -4,6 +4,7 @@
    Copyright 2011, Tyler Rhodes <tyler.s.rhodes@gmail.com>
    Copyright 2011, Andrea Decorte <adecorte@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,19 +23,13 @@
 #ifndef INTERNET_JAMENDO_JAMENDOSERVICE_H_
 #define INTERNET_JAMENDO_JAMENDOSERVICE_H_
 
-#include <QXmlStreamReader>
-
-#include "core/song.h"
+#include <memory>
 #include "internet/core/internetservice.h"
 
 class LibraryBackend;
 class LibraryFilterWidget;
 class LibraryModel;
 class LibrarySearchProvider;
-class NetworkAccessManager;
-class SearchProvider;
-
-class QIODevice;
 class QMenu;
 class QSortFilterProxyModel;
 
@@ -55,69 +50,27 @@ class JamendoService : public InternetService {
   LibraryBackend* library_backend() const { return library_backend_.get(); }
 
   static const char* kServiceName;
-  static const char* kDirectoryUrl;
-  static const char* kMp3StreamUrl;
-  static const char* kOggStreamUrl;
-  static const char* kAlbumCoverUrl;
-  static const char* kAlbumInfoUrl;
-  static const char* kDownloadAlbumUrl;
   static const char* kHomepage;
-
   static const char* kSongsTable;
   static const char* kFtsTable;
-  static const char* kTrackIdsTable;
-  static const char* kTrackIdsColumn;
-
   static const char* kSettingsGroup;
 
-  static const int kBatchSize;
-  static const int kApproxDatabaseSize;
-
  private:
-  void ParseDirectory(QIODevice* device) const;
-
-  typedef QList<int> TrackIdList;
-
-  SongList ReadArtist(QXmlStreamReader* reader, TrackIdList* track_ids) const;
-  SongList ReadAlbum(const QString& artist, QXmlStreamReader* reader,
-                     TrackIdList* track_ids) const;
-  Song ReadTrack(const QString& artist, const QString& album,
-                 const QString& album_cover, int album_id,
-                 QXmlStreamReader* reader, TrackIdList* track_ids) const;
-  void InsertTrackIds(const TrackIdList& ids) const;
-
   void EnsureMenuCreated();
 
  private slots:
-  void DownloadDirectory();
-  void DownloadDirectoryProgress(qint64 received, qint64 total);
-  void DownloadDirectoryFinished();
-  void ParseDirectoryFinished();
   void UpdateTotalSongCount(int count);
 
-  void AlbumInfo();
-  void DownloadAlbum();
   void Homepage();
 
-  void SearchProviderToggled(const SearchProvider* provider, bool enabled);
-
  private:
-  NetworkAccessManager* network_;
-
-  QAction* album_info_;
-  QAction* download_album_;
-
   std::shared_ptr<LibraryBackend> library_backend_;
   LibraryFilterWidget* library_filter_;
   LibraryModel* library_model_;
   QSortFilterProxyModel* library_sort_model_;
   LibrarySearchProvider* search_provider_;
 
-  int load_database_task_id_;
-
-  int total_song_count_;
-
-  bool accepted_download_;
+  bool has_local_catalog_;
 };
 
 #endif  // INTERNET_JAMENDO_JAMENDOSERVICE_H_
