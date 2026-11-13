@@ -2,6 +2,7 @@
    Copyright 2010-2013, David Sansome <me@davidsansome.com>
    Copyright 2010, 2014, John Maguire <john.maguire@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,15 +21,13 @@
 #ifndef INTERNET_INTERGALACTICFM_INTERGALACTICFMSERVICE_H_
 #define INTERNET_INTERGALACTICFM_INTERGALACTICFMSERVICE_H_
 
-#include <QXmlStreamReader>
-
 #include "core/cachedlist.h"
 #include "internet/core/internetservice.h"
+#include "internet/core/internetmodel.h"
 
 class IntergalacticFMUrlHandler;
 
 class QNetworkAccessManager;
-class QNetworkReply;
 class QMenu;
 
 class IntergalacticFMServiceBase : public InternetService {
@@ -36,13 +35,16 @@ class IntergalacticFMServiceBase : public InternetService {
 
  public:
   IntergalacticFMServiceBase(Application* app, InternetModel* parent,
-                             const QString& name, const QUrl& channel_list_url,
-                             const QUrl& homepage_url,
+                             const QString& name, const QUrl& homepage_url,
                              const QUrl& donate_page_url, const QIcon& icon);
   ~IntergalacticFMServiceBase() override;
 
-  enum ItemType {
-    Type_Stream = 2000,
+  enum Type {
+    Type_VaultDirectory = InternetModel::TypeCount,
+  };
+
+  enum Role {
+    Role_DirectoryUrl = InternetModel::RoleCount,
   };
 
   struct Stream {
@@ -77,14 +79,13 @@ class IntergalacticFMServiceBase : public InternetService {
  private slots:
   void ForceRefreshStreams();
   void RefreshStreams();
-  void RefreshStreamsFinished(QNetworkReply* reply, int task_id);
 
   void Homepage();
   void Donate();
 
  private:
-  void ReadChannel(QXmlStreamReader& reader, StreamList* ret);
   void PopulateStreams();
+  void FetchVaultDirectory(QStandardItem* item);
 
  private:
   const QString url_scheme_;
@@ -97,7 +98,6 @@ class IntergalacticFMServiceBase : public InternetService {
   CachedList<Stream> streams_;
 
   const QString name_;
-  const QUrl channel_list_url_;
   const QUrl homepage_url_;
   const QUrl donate_page_url_;
   const QIcon icon_;

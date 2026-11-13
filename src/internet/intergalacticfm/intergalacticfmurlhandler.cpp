@@ -3,6 +3,7 @@
    Copyright 2012, Olaf Christ <olafc81@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
    Copyright 2014, John Maguire <john.maguire@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,10 +45,21 @@ QIcon IntergalacticFMUrlHandler::icon() const { return service_->icon(); }
 
 UrlHandler::LoadResult IntergalacticFMUrlHandler::StartLoading(
     const QUrl& url) {
+  const QString host = url.host();
+  const QString path = url.path();
+
+  if (host.compare("radio.intergalactic.fm", Qt::CaseInsensitive) == 0 &&
+      (path == "/1" || path == "/2" || path == "/3")) {
+    QUrl media_url(url);
+    media_url.setScheme("http");
+
+    return LoadResult(url, LoadResult::TrackAvailable, media_url);
+  }
+
+  // Legacy playlist URL support.
   QUrl playlist_url = url;
   playlist_url.setScheme("https");
 
-  // Load the playlist
   QNetworkReply* reply =
       service_->network()->get(QNetworkRequest(playlist_url));
   connect(reply, SIGNAL(finished()), SLOT(LoadPlaylistFinished()));
