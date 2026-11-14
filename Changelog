@@ -6,10 +6,16 @@ Version 1.4.2+mintian:
   Other features:
     * Add an "Added in the last 30 days" smart playlist.
     * Require projectM 4.2 or newer when using system-installed libraries.
+    * Improve Jamendo dynamic playlists with independent category pagination
+      and round-robin discovery.
+    * Make full-width playback controls and moodbar placement the default
+      for new configurations.
 
   Bugfixes:
     * Fix switching to the Search, Library, and Internet tabs.
     * Improve lyrics-provider fallback and lookup reliability.
+    * Improve Jamendo playlist reliability with spaced retries for empty
+      API responses and more robust track handling.
 
 
 

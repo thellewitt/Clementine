@@ -22,7 +22,10 @@
 #ifndef INTERNET_JAMENDO_JAMENDODYNAMICPLAYLIST_H_
 #define INTERNET_JAMENDO_JAMENDODYNAMICPLAYLIST_H_
 
+#include <QList>
+#include <QString>
 #include <QSet>
+
 #include "smartplaylists/generator.h"
 
 class JamendoDynamicPlaylist : public smart_playlists::Generator {
@@ -71,22 +74,43 @@ class JamendoDynamicPlaylist : public smart_playlists::Generator {
   PlaylistItemList GenerateMore(int count);
 
  private:
+  struct QuerySpec {
+    QString name;
+    QString order;
+    QString tags;
+    QString fuzzytags;
+    QString acousticelectric;
+    bool featured = false;
+    bool group_by_artist = false;
+  };
+
+  struct QueryState {
+    QuerySpec query;
+    int offset = 0;
+    int empty_response_count = 0;
+    bool exhausted = false;
+  };
+
+  void InitializeQueries();
+
   bool Fetch();
   static QString OrderSpec(OrderBy by, OrderDirection dir);
 
- private:
   OrderBy order_by_;
   OrderDirection order_direction_;
 
-  int current_page_;
   PlaylistItemList current_items_;
   int current_index_;
-  bool exhausted_;
+  bool exhausted_;  // All queries exhausted or a fatal error occurred.
+
+  QList<QueryState> query_states_;
+  int next_query_index_;
 
   QSet<QString> seen_track_ids_;
 
   static const int kPageSize = 20;
-  static const int kApiRetryLimit = 5;
+  static const int kMaxEmptyResponses = 3;
+  static const int kMaxFetchAttemptsPerGenerate = 5;
   static const char* kUrl;
 };
 

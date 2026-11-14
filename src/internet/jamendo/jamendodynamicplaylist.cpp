@@ -22,15 +22,20 @@
 #include "jamendodynamicplaylist.h"
 
 #include <QEventLoop>
-#include <QUrlQuery>
-#include <QtDebug>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QRandomGenerator>
 #include <QSet>
+#include <QTimer>
+#include <QUrl>
+#include <QUrlQuery>
+#include <QtDebug>
+
 #include <algorithm>
 #include <random>
 
@@ -41,6 +46,7 @@
 
 namespace {
 constexpr char kJamendoClientId[] = "d0917dd8";
+constexpr int kEmptyResponseRetryDelayMs = 1000;
 }
 
 const char* JamendoDynamicPlaylist::kUrl =
@@ -49,19 +55,17 @@ const char* JamendoDynamicPlaylist::kUrl =
 JamendoDynamicPlaylist::JamendoDynamicPlaylist()
     : order_by_(OrderBy_Rating),
       order_direction_(Order_Descending),
-      current_page_(0),
       current_index_(0),
-      exhausted_(false) {}
+      exhausted_(false),
+      next_query_index_(0) {}
 
 JamendoDynamicPlaylist::JamendoDynamicPlaylist(
     const QString& name, OrderBy order_by)
     : order_by_(order_by),
       order_direction_(Order_Descending),
-      current_page_(order_by >= OrderBy_Electronic
-                        ? QRandomGenerator::global()->bounded(3)
-                        : 0),
       current_index_(0),
-      exhausted_(false) {
+      exhausted_(false),
+      next_query_index_(0) {
   set_name(name);
 }
 
@@ -69,11 +73,12 @@ void JamendoDynamicPlaylist::Load(const QByteArray& data) {
   QDataStream s(data);
   s >> *this;
 
-  current_page_ = 0;
   current_items_.clear();
   current_index_ = 0;
   exhausted_ = false;
   seen_track_ids_.clear();
+  query_states_.clear();
+  next_query_index_ = 0;
 }
 
 void JamendoDynamicPlaylist::Load(OrderBy order_by,
@@ -81,11 +86,12 @@ void JamendoDynamicPlaylist::Load(OrderBy order_by,
   order_by_ = order_by;
   order_direction_ = order_direction;
 
-  current_page_ = 0;
   current_items_.clear();
   current_index_ = 0;
   exhausted_ = false;
   seen_track_ids_.clear();
+  query_states_.clear();
+  next_query_index_ = 0;
 }
 
 QByteArray JamendoDynamicPlaylist::Save() const {
@@ -99,20 +105,23 @@ QByteArray JamendoDynamicPlaylist::Save() const {
 PlaylistItemList JamendoDynamicPlaylist::Generate() { return GenerateMore(20); }
 
 PlaylistItemList JamendoDynamicPlaylist::GenerateMore(int count) {
-  int tries = 0;
+  int fetch_attempts = 0;
   PlaylistItemList items;
 
-  while (items.size() < count && tries++ < kApiRetryLimit &&
-         !exhausted_) {
+  while (items.size() < count && !exhausted_) {
     if (current_index_ < current_items_.size()) {
       PlaylistItemList more_items =
           current_items_.mid(current_index_, count - items.size());
 
       items << more_items;
       current_index_ += more_items.size();
-    } else {
-      if (!Fetch()) break;
+      continue;
     }
+
+    if (fetch_attempts >= kMaxFetchAttemptsPerGenerate) break;
+    ++fetch_attempts;
+
+    if (!Fetch()) break;
   }
 
   return items;
@@ -161,6 +170,145 @@ QString JamendoDynamicPlaylist::OrderSpec(OrderBy by,
   return ret;
 }
 
+void JamendoDynamicPlaylist::InitializeQueries() {
+  query_states_.clear();
+  next_query_index_ = 0;
+  exhausted_ = false;
+
+  auto add_query = [this](const QuerySpec& query) {
+    QueryState state;
+    state.query = query;
+    query_states_.append(state);
+  };
+
+  auto featured_tags = [](const QString& name, const QString& tags) {
+    QuerySpec query;
+    query.name = name;
+    query.tags = tags;
+    query.featured = true;
+    query.group_by_artist = true;
+    return query;
+  };
+
+  auto fuzzy_tags = [](const QString& name, const QString& tags,
+                       bool featured) {
+    QuerySpec query;
+    query.name = name;
+    query.fuzzytags = tags;
+    query.featured = featured;
+    query.group_by_artist = true;
+    return query;
+  };
+
+  switch (order_by_) {
+    case OrderBy_Rating:
+    case OrderBy_RatingWeek:
+    case OrderBy_RatingMonth:
+    case OrderBy_Listened: {
+      QuerySpec query;
+
+      switch (order_by_) {
+        case OrderBy_Rating:
+          query.name = "Rating";
+          break;
+        case OrderBy_RatingWeek:
+          query.name = "Rating Week";
+          break;
+        case OrderBy_RatingMonth:
+          query.name = "Rating Month";
+          break;
+        case OrderBy_Listened:
+          query.name = "Most Listened";
+          break;
+        default:
+          break;
+      }
+
+      query.order = OrderSpec(order_by_, order_direction_);
+      add_query(query);
+      break;
+    }
+
+    case OrderBy_RandomMix: {
+      QuerySpec query;
+      query.name = "Popularity Month";
+      query.order = "popularity_month_desc";
+      add_query(query);
+
+      query.name = "Popularity Week";
+      query.order = "popularity_week_desc";
+      add_query(query);
+
+      query.name = "Popularity Total";
+      query.order = "popularity_total_desc";
+      add_query(query);
+
+      query.name = "Most Listened";
+      query.order = "listens_total_desc";
+      add_query(query);
+      break;
+    }
+
+    case OrderBy_Electronic:
+      add_query(featured_tags("Electronic", "electronic"));
+      break;
+
+    case OrderBy_IndieAlternative:
+      add_query(fuzzy_tags("Indie / Alternative",
+                           "rock+alternative+indie", true));
+      break;
+
+    case OrderBy_DreamPopAtmosphere:
+      add_query(fuzzy_tags("Dream Pop / Atmosphere",
+                           "ambient+soundtrack+relaxation", false));
+      break;
+
+    case OrderBy_LoungeDowntempo:
+      add_query(fuzzy_tags("Lounge / Downtempo",
+                           "lounge+relaxation+downtempo+chillout", true));
+      break;
+
+    case OrderBy_AcousticStorytellers: {
+      QuerySpec query = featured_tags("Acoustic Storytellers", "songwriter");
+      query.acousticelectric = "acoustic";
+      add_query(query);
+      break;
+    }
+
+    case OrderBy_JazzAfterHours:
+      add_query(featured_tags("Jazz After Hours", "jazz"));
+      break;
+
+    case OrderBy_WorldGrooves:
+      add_query(featured_tags("World Grooves", "world"));
+      break;
+
+    case OrderBy_DynamicDiscovery:
+      add_query(featured_tags("Electronic", "electronic"));
+      add_query(fuzzy_tags("Indie / Alternative",
+                           "rock+alternative+indie", true));
+      add_query(fuzzy_tags("Dream Pop / Atmosphere",
+                           "ambient+soundtrack+relaxation", false));
+      add_query(fuzzy_tags("Lounge / Downtempo",
+                           "lounge+relaxation+downtempo+chillout", true));
+
+      {
+        QuerySpec query = featured_tags("Acoustic Storytellers", "songwriter");
+        query.acousticelectric = "acoustic";
+        add_query(query);
+      }
+
+      add_query(featured_tags("Jazz After Hours", "jazz"));
+      add_query(featured_tags("World Grooves", "world"));
+      break;
+
+    default:
+      qLog(Warning) << "Unknown Jamendo playlist type:" << order_by_;
+      exhausted_ = true;
+      break;
+  }
+}
+
 bool JamendoDynamicPlaylist::Fetch() {
   if (exhausted_) return false;
 
@@ -170,136 +318,65 @@ bool JamendoDynamicPlaylist::Fetch() {
     return false;
   }
 
-  struct QuerySpec {
-    QString order;
-    QString tags;
-    QString fuzzytags;
-    QString acousticelectric;
-    bool featured = false;
-    bool group_by_artist = false;
-  };
-
-  auto featured_tags = [](const QString& tags) {
-    QuerySpec query;
-    query.tags = tags;
-    query.featured = true;
-    query.group_by_artist = true;
-    return query;
-  };
-
-  auto fuzzy_tags = [](const QString& tags, bool featured = false) {
-    QuerySpec query;
-    query.fuzzytags = tags;
-    query.featured = featured;
-    query.group_by_artist = true;
-    return query;
-  };
-
-  QList<QuerySpec> queries;
-  QStringList legacy_orders;
-
-  switch (order_by_) {
-    case OrderBy_Rating:
-    case OrderBy_RatingWeek:
-    case OrderBy_RatingMonth:
-    case OrderBy_Listened: {
-      QuerySpec query;
-      query.order = OrderSpec(order_by_, order_direction_);
-      queries << query;
-      break;
-    }
-
-    case OrderBy_RandomMix:
-      // Retain compatibility with previously saved playlists.
-      legacy_orders << "popularity_month_desc"
-                    << "popularity_week_desc"
-                    << "popularity_total_desc"
-                    << "listens_total_desc";
-      for (const QString& order : legacy_orders) {
-        QuerySpec query;
-        query.order = order;
-        queries << query;
-      }
-      break;
-
-    case OrderBy_Electronic:
-      queries << featured_tags("electronic");
-      break;
-
-    case OrderBy_IndieAlternative:
-      queries << fuzzy_tags("rock+alternative+indie", true);
-      break;
-
-    case OrderBy_DreamPopAtmosphere:
-      queries << fuzzy_tags("ambient+soundtrack+relaxation");
-      break;
-
-    case OrderBy_LoungeDowntempo:
-      queries << fuzzy_tags("lounge+relaxation+downtempo+chillout", true);
-      break;
-
-    case OrderBy_AcousticStorytellers: {
-      QuerySpec query = featured_tags("songwriter");
-      query.acousticelectric = "acoustic";
-      queries << query;
-      break;
-    }
-
-    case OrderBy_JazzAfterHours:
-      queries << featured_tags("jazz");
-      break;
-
-    case OrderBy_WorldGrooves:
-      queries << featured_tags("world");
-      break;
-
-    case OrderBy_DynamicDiscovery:
-      queries << featured_tags("electronic")
-              << fuzzy_tags("rock+alternative+indie", true)
-              << fuzzy_tags("ambient+soundtrack+relaxation")
-              << fuzzy_tags("lounge+relaxation+downtempo+chillout", true);
-
-      {
-        QuerySpec query = featured_tags("songwriter");
-        query.acousticelectric = "acoustic";
-        queries << query;
-      }
-
-      queries << featured_tags("jazz")
-              << featured_tags("world");
-      break;
-
-    default:
-      qLog(Warning) << "Unknown Jamendo playlist type:" << order_by_;
-      exhausted_ = true;
-      return false;
+  if (query_states_.isEmpty()) {
+    InitializeQueries();
   }
+
+  if (exhausted_ || query_states_.isEmpty()) return false;
 
   std::mt19937 rng(QRandomGenerator::global()->generate());
 
   const bool discovery = order_by_ >= OrderBy_Electronic;
 
-  // The discovery mix deliberately samples only four categories per fetch.
+  QList<int> query_indices;
+
   if (order_by_ == OrderBy_DynamicDiscovery) {
-    std::shuffle(queries.begin(), queries.end(), rng);
-    while (queries.size() > 4) queries.removeLast();
+    const int query_count = query_states_.size();
+    int index = next_query_index_;
+
+    for (int scanned = 0;
+         scanned < query_count && query_indices.size() < 4;
+         ++scanned) {
+      if (!query_states_.at(index).exhausted) {
+        query_indices.append(index);
+      }
+
+      index = (index + 1) % query_count;
+    }
+
+    next_query_index_ = index;
+  } else {
+    for (int i = 0; i < query_states_.size(); ++i) {
+      if (!query_states_.at(i).exhausted) {
+        query_indices.append(i);
+      }
+    }
+  }
+
+  if (query_indices.isEmpty()) {
+    exhausted_ = true;
+    return false;
   }
 
   QNetworkAccessManager network;
   QJsonArray results;
+  QSet<QString> batch_track_ids;
 
   bool successful_response = false;
-  bool received_track_results = false;
+  bool received_page_results = false;
+  bool empty_response_retry_pending = false;
 
-  for (const QuerySpec& query : queries) {
+  for (int query_index : query_indices) {
+    QueryState& state = query_states_[query_index];
+    const QuerySpec& query = state.query;
+
     QUrl url(kUrl);
     QUrlQuery url_query;
 
     url_query.addQueryItem("client_id",
                            QString::fromLatin1(kJamendoClientId));
     url_query.addQueryItem("format", "json");
-    url_query.addQueryItem(
-        "offset", QString::number(current_page_ * kPageSize));
+    url_query.addQueryItem("offset", QString::number(state.offset));
     url_query.addQueryItem("limit", QString::number(kPageSize));
     url_query.addQueryItem("audioformat", "mp31");
     url_query.addQueryItem("imagesize", "300");
@@ -313,9 +390,10 @@ bool JamendoDynamicPlaylist::Fetch() {
     if (!query.fuzzytags.isEmpty())
       url_query.addQueryItem("fuzzytags", query.fuzzytags);
 
-    if (!query.acousticelectric.isEmpty())
+    if (!query.acousticelectric.isEmpty()) {
       url_query.addQueryItem("acousticelectric",
                              query.acousticelectric);
+    }
 
     if (query.featured)
       url_query.addQueryItem("featured", "1");
@@ -345,7 +423,9 @@ bool JamendoDynamicPlaylist::Fetch() {
 
     if (network_error != QNetworkReply::NoError) {
       qLog(Warning) << "Jamendo request failed:"
-                    << error_string << ", url:" << url.toString();
+                    << error_string
+                    << "query:" << query.name
+                    << "offset:" << state.offset;
       continue;
     }
 
@@ -356,7 +436,8 @@ bool JamendoDynamicPlaylist::Fetch() {
     if (parse_error.error != QJsonParseError::NoError ||
         !document.isObject()) {
       qLog(Warning) << "Invalid JSON returned from Jamendo:"
-                    << parse_error.errorString();
+                    << parse_error.errorString()
+                    << "query:" << query.name;
       continue;
     }
 
@@ -366,7 +447,8 @@ bool JamendoDynamicPlaylist::Fetch() {
 
     if (api_code != 0) {
       qLog(Warning) << "Jamendo API error:" << api_code
-                    << headers.value("error_message").toString();
+                    << headers.value("error_message").toString()
+                    << "query:" << query.name;
 
       if (api_code == 5 || api_code == 11) {
         exhausted_ = true;
@@ -376,13 +458,64 @@ bool JamendoDynamicPlaylist::Fetch() {
       continue;
     }
 
+    const QJsonValue results_value = root.value("results");
+
+    if (!results_value.isArray()) {
+      qLog(Warning) << "Jamendo response has no results array:"
+                    << query.name
+                    << "offset:" << state.offset;
+      continue;
+    }
+
+    const QJsonArray page_results = results_value.toArray();
+    const int reported_count =
+        headers.value("results_count").toInt(-1);
+
+    if (page_results.isEmpty()) {
+      // An empty array must agree with Jamendo's reported count.
+      // Otherwise this is an inconsistent response, not an empty page.
+      if (reported_count != 0) {
+        qLog(Warning) << "Jamendo returned an empty array with"
+                      << "unexpected results_count:" << reported_count
+                      << "query:" << query.name
+                      << "offset:" << state.offset;
+        continue;
+      }
+
+      successful_response = true;
+      ++state.empty_response_count;
+
+      if (state.empty_response_count >= kMaxEmptyResponses) {
+        state.exhausted = true;
+
+        qLog(Debug) << "Jamendo query exhausted after"
+                    << state.empty_response_count
+                    << "empty responses:"
+                    << query.name
+                    << "offset:" << state.offset;
+      } else {
+        empty_response_retry_pending = true;
+
+        qLog(Debug) << "Jamendo query returned an empty response:"
+                    << query.name
+                    << "offset:" << state.offset
+                    << "attempt:" << state.empty_response_count
+                    << "of" << kMaxEmptyResponses;
+      }
+
+      continue;
+    }
+
     successful_response = true;
 
-    const QJsonArray page_results = root.value("results").toArray();
-
-    if (!page_results.isEmpty()) {
-      received_track_results = true;
+    if (reported_count == 0) {
+      qLog(Warning) << "Jamendo returned tracks despite reporting"
+                    << "zero results:" << query.name;
     }
+
+    state.empty_response_count = 0;
+    state.offset += page_results.size();
+    received_page_results = true;
 
     for (const QJsonValue& value : page_results) {
       if (!value.isObject()) continue;
@@ -401,8 +534,10 @@ bool JamendoDynamicPlaylist::Fetch() {
       bool ok = false;
       const int track_id = id.toInt(&ok);
 
-      if (ok && track_id > 0 && !seen_track_ids_.contains(id)) {
-        seen_track_ids_.insert(id);
+      if (ok && track_id > 0 &&
+          !seen_track_ids_.contains(id) &&
+          !batch_track_ids.contains(id)) {
+        batch_track_ids.insert(id);
         results.append(value);
       }
     }
@@ -411,18 +546,39 @@ bool JamendoDynamicPlaylist::Fetch() {
   if (!successful_response) return false;
 
   if (results.isEmpty()) {
-    if (received_track_results) {
-        ++current_page_;
-        qLog(Debug) << "Jamendo page contained only previously seen tracks.";
-        return true;
+    const bool all_queries_exhausted = std::all_of(
+        query_states_.cbegin(), query_states_.cend(),
+        [](const QueryState& state) {
+          return state.exhausted;
+        });
+
+    if (all_queries_exhausted) {
+      exhausted_ = true;
+      qLog(Debug) << "Jamendo has no more tracks across all queries.";
+      return false;
     }
 
-    qLog(Debug) << "Jamendo returned no more tracks.";
-    exhausted_ = true;
-    return false;
-  }
+    if (received_page_results) {
+      qLog(Debug) << "Jamendo batch produced no new track IDs.";
+    } else {
+      qLog(Debug) << "Jamendo batch returned no tracks;"
+                     " remaining queries will be tried.";
+    }
 
-  ++current_page_;
+    // Space out empty-response retries without sleeping the Qt thread.
+    // This nested event loop continues processing Qt events while waiting.
+    if (empty_response_retry_pending) {
+      QEventLoop retry_loop;
+
+      QTimer::singleShot(
+          kEmptyResponseRetryDelayMs,
+          &retry_loop, SLOT(quit()));
+
+      retry_loop.exec(QEventLoop::ExcludeUserInputEvents);
+    }
+
+    return true;
+  }
 
   current_items_.clear();
   current_index_ = 0;
@@ -436,11 +592,15 @@ bool JamendoDynamicPlaylist::Fetch() {
       track_id = QString::number(track.value("id").toInt());
     }
 
+    bool id_ok = false;
+    const int numeric_track_id = track_id.toInt(&id_ok);
+
     const QString title = track.value("name").toString();
     const QString artist = track.value("artist_name").toString();
     const QUrl audio_url(track.value("audio").toString());
 
-    if (track_id.isEmpty() || title.isEmpty() || artist.isEmpty() ||
+    if (!id_ok || numeric_track_id <= 0 ||
+        title.isEmpty() || artist.isEmpty() ||
         !audio_url.isValid() || audio_url.scheme() != "https") {
       qLog(Warning) << "Skipping incomplete Jamendo track:" << track_id;
       continue;
@@ -478,6 +638,8 @@ bool JamendoDynamicPlaylist::Fetch() {
     song.set_art_automatic(image);
     song.set_valid(true);
 
+    // Only remember tracks that passed validation.
+    seen_track_ids_.insert(track_id);
     current_items_ << PlaylistItemPtr(new SongPlaylistItem(song));
   }
 

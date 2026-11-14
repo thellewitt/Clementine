@@ -141,7 +141,7 @@ NowPlayingWidget::NowPlayingWidget(QWidget* parent)
   connect(above_statusbar_action_, SIGNAL(toggled(bool)),
           SLOT(ShowAboveStatusBar(bool)));
   above_statusbar_action_->setChecked(
-      s.value("above_status_bar", false).toBool());
+      s.value("above_status_bar", true).toBool());
 
   bask_in_his_glory_action_ =
       menu_->addAction(tr("ALL GLORY TO THE HYPNOTOAD"));
