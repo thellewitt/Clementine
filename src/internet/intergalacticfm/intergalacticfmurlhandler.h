@@ -37,6 +37,8 @@ class IntergalacticFMUrlHandler : public UrlHandler {
   QString scheme() const;
   QIcon icon() const;
   LoadResult StartLoading(const QUrl& url);
+  void ResolveUrl(const QUrl& url,
+                  ResolveCallback callback) const override;
 
  private slots:
   void LoadPlaylistFinished();

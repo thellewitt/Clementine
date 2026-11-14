@@ -451,6 +451,15 @@ void RadioBrowserService::ResolveStationUrl(
       return;
     }
 
+    // Prefer HTTPS for laut.fm streams. Its HTTP redirect path
+    // can prevent GStreamer from identifying the audio stream.
+    const QString host = stream_url.host().toLower();
+    if (stream_url.scheme() == QStringLiteral("http") &&
+        (host == QStringLiteral("stream.laut.fm") ||
+         host.endsWith(QStringLiteral(".stream.laut.fm")))) {
+      stream_url.setScheme(QStringLiteral("https"));
+    }
+
     Song ret;
     ret.set_valid(true);
     ret.set_title(item["name"].toString());

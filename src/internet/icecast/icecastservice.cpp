@@ -197,6 +197,16 @@ QStringList FilterGenres(const QStringList& genres) {
 void IcecastService::ParseDirectoryFinished(
     QFuture<QList<IcecastBackend::Station>> future, int task_id) {
   IcecastBackend::StationList all_stations = future.result();
+
+  // Discard directory entries without a stream URL.
+  all_stations.erase(
+      std::remove_if(
+          all_stations.begin(), all_stations.end(),
+          [](const IcecastBackend::Station& station) {
+            return station.url.isEmpty();
+          }),
+      all_stations.end());
+
   sort(all_stations.begin(), all_stations.end(),
        StationSorter<IcecastBackend::Station>());
   // Remove duplicates by name. These tend to be multiple URLs for the same

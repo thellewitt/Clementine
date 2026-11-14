@@ -70,6 +70,25 @@ UrlHandler::LoadResult IntergalacticFMUrlHandler::StartLoading(
   return LoadResult(url, LoadResult::WillLoadAsynchronously);
 }
 
+void IntergalacticFMUrlHandler::ResolveUrl(
+    const QUrl& url, ResolveCallback callback) const {
+  if (!callback) return;
+
+  const QString host = url.host();
+  const QString path = url.path();
+
+  if (host.compare("radio.intergalactic.fm", Qt::CaseInsensitive) == 0 &&
+      (path == "/1" || path == "/2" || path == "/3")) {
+    QUrl media_url(url);
+    media_url.setScheme("http");
+
+    callback(LoadResult(url, LoadResult::TrackAvailable, media_url));
+    return;
+  }
+
+  callback(LoadResult(url, LoadResult::Error));
+}
+
 void IntergalacticFMUrlHandler::LoadPlaylistFinished() {
   QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
   app_->task_manager()->SetTaskFinished(task_id_);

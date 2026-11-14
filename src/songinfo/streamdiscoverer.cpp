@@ -51,8 +51,20 @@ void StreamDiscoverer::OnDiscovered(GstDiscoverer* discoverer,
 
   GstDiscovererResult result = gst_discoverer_info_get_result(info);
   if (result != GST_DISCOVERER_OK) {
+    const QString error_detail =
+        err ? QString::fromUtf8(err->message)
+            : tr("No GStreamer error details supplied");
+
+    const char* domain = err ? g_quark_to_string(err->domain) : nullptr;
+
+    qLog(Error) << "Discovery failed:"
+                << "URI" << discovered_url
+                << "result" << static_cast<int>(result)
+                << "domain" << (domain ? domain : "(none)")
+                << "code" << (err ? err->code : -1)
+                << "message" << error_detail;
+
     QString error_message = GSTdiscovererErrorMessage(result);
-    qLog(Error) << "Discovery failed:" << error_message;
     emit instance->Error(
         tr("Error discovering %1: %2").arg(discovered_url).arg(error_message));
     return;
