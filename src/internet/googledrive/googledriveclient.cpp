@@ -2,6 +2,7 @@
    Copyright 2012, 2014, John Maguire <john.maguire@gmail.com>
    Copyright 2012, 2014, David Sansome <me@davidsansome.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +43,7 @@ static const char* kGoogleDriveStartPageToken =
     "https://www.googleapis.com/drive/v3/changes/startPageToken";
 // Fields requested on every file resource we read - see File's accessors.
 static const char* kFileFields =
-    "id,name,mimeType,description,size,modifiedTime,createdTime,version";
+    "id,name,mimeType,description,size,modifiedTime,createdTime,version,webViewLink";
 // Introspects a token to find out what it's for - works for any valid
 // token regardless of scope, unlike the old oauth2/v1/userinfo endpoint,
 // which needed the userinfo.email scope we can no longer request (see
@@ -50,9 +51,9 @@ static const char* kFileFields =
 static const char* kGoogleTokenInfoEndpoint =
     "https://www.googleapis.com/oauth2/v1/tokeninfo";
 
-static const char* kOAuthEndpoint = "https://accounts.google.com/o/oauth2/auth";
+static const char* kOAuthEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
 static const char* kOAuthTokenEndpoint =
-    "https://accounts.google.com/o/oauth2/token";
+    "https://oauth2.googleapis.com/token";
 // drive.file only grants access to files the user explicitly picks
 // (see Client::AuthorizeAndPick) - unlike drive.readonly it is not a
 // sensitive scope, so it doesn't require Google app verification. Google's
@@ -74,7 +75,8 @@ QUrl File::download_url() const {
   return url;
 }
 
-ConnectResponse::ConnectResponse(QObject* parent) : QObject(parent) {}
+ConnectResponse::ConnectResponse(QObject* parent)
+    : QObject(parent), had_error_(false) {}
 
 GetFileResponse::GetFileResponse(const QString& file_id, QObject* parent)
     : QObject(parent), file_id_(file_id), had_error_(false) {}
@@ -91,11 +93,46 @@ ConnectResponse* Client::Connect(const QString& refresh_token) {
   OAuthenticator* oauth = new OAuthenticator(
       kClientId, kClientSecret, OAuthenticator::RedirectStyle::LOCALHOST, this);
 
+  connect(oauth, &OAuthenticator::Failed, this,
+          [ret, oauth](const QString& error) {
+            oauth->deleteLater();
+            ret->had_error_ = true;
+            ret->error_message_ = error;
+            emit ret->Finished();
+          });
+
   oauth->RefreshAuthorisation(kOAuthTokenEndpoint, refresh_token);
 
   NewClosure(oauth, SIGNAL(Finished()), this,
              SLOT(ConnectFinished(ConnectResponse*, OAuthenticator*)), ret,
              oauth);
+  return ret;
+}
+
+ConnectResponse* Client::AuthorizeAccount() {
+  ConnectResponse* ret = new ConnectResponse(this);
+  OAuthenticator* oauth = new OAuthenticator(
+      kClientId, kClientSecret, OAuthenticator::RedirectStyle::LOCALHOST,
+      this);
+
+  QUrlQuery extra_params;
+  extra_params.addQueryItem("prompt", "consent");
+  extra_params.addQueryItem("access_type", "offline");
+
+  connect(oauth, &OAuthenticator::Failed, this,
+        [ret, oauth](const QString& error) {
+          oauth->deleteLater();
+          ret->had_error_ = true;
+          ret->error_message_ = error;
+          emit ret->Finished();
+        });
+
+  oauth->StartAuthorisation(kOAuthEndpoint, kOAuthTokenEndpoint,
+                            kOAuthScope, extra_params);
+
+  NewClosure(oauth, SIGNAL(Finished()), this,
+             SLOT(ConnectFinished(ConnectResponse*, OAuthenticator*)),
+             ret, oauth);
   return ret;
 }
 
@@ -108,9 +145,18 @@ ConnectResponse* Client::AuthorizeAndPick(const QStringList& mime_types) {
   extra_params.addQueryItem("prompt", "consent");
   extra_params.addQueryItem("trigger_onepick", "true");
   extra_params.addQueryItem("allow_multiple", "true");
+  extra_params.addQueryItem("access_type", "offline");
   if (!mime_types.isEmpty()) {
     extra_params.addQueryItem("mimetypes", mime_types.join(","));
   }
+
+  connect(oauth, &OAuthenticator::Failed, this,
+        [ret, oauth](const QString& error) {
+          oauth->deleteLater();
+          ret->had_error_ = true;
+          ret->error_message_ = error;
+          emit ret->Finished();
+        });
 
   oauth->StartAuthorisation(kOAuthEndpoint, kOAuthTokenEndpoint, kOAuthScope,
                             extra_params);
@@ -143,18 +189,26 @@ void Client::ConnectFinished(ConnectResponse* response, OAuthenticator* oauth) {
 void Client::FetchUserInfoFinished(ConnectResponse* response,
                                    QNetworkReply* reply) {
   reply->deleteLater();
-  if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute) != 200) {
-    qLog(Warning) << "Failed to get token info" << reply->readAll();
+
+  const int status =
+      reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
+  if (reply->error() != QNetworkReply::NoError || status != 200) {
+    qLog(Warning) << "Failed to retrieve Google account information:"
+                  << reply->errorString();
   } else {
     QJsonParseError error;
-    QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &error);
-    if (error.error != QJsonParseError::NoError) {
-      qLog(Error) << "Failed to parse token info reply";
-      return;
-    }
+    const QJsonDocument document =
+        QJsonDocument::fromJson(reply->readAll(), &error);
 
-    response->user_email_ = document.object()["email"].toString();
+    if (error.error != QJsonParseError::NoError) {
+      qLog(Error) << "Failed to parse Google account information:"
+                  << error.errorString();
+    } else {
+      response->user_email_ = document.object()["email"].toString();
+    }
   }
+
   emit response->Finished();
   emit Authenticated();
 }
@@ -189,8 +243,7 @@ GetFileResponse* Client::GetFile(const QString& file_id,
   url_query.addQueryItem("fields", kFileFields);
   url.setQuery(url_query);
 
-  qLog(Debug) << "GetFile" << file_id << "url =" << url
-              << ", resource key =" << resource_key;
+  qLog(Debug) << "GetFile" << file_id << "url =" << url;
 
   QNetworkRequest request = QNetworkRequest(url);
   AddAuthorizationHeader(&request);

@@ -2,6 +2,7 @@
    Copyright 2011-2013, David Sansome <me@davidsansome.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
    Copyright 2014, John Maguire <john.maguire@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +36,8 @@ class SomaFMUrlHandler : public UrlHandler {
   QString scheme() const;
   QIcon icon() const;
   LoadResult StartLoading(const QUrl& url);
+  void ResolveUrl(const QUrl& url,
+                  ResolveCallback callback) const override;
 
  private slots:
   void LoadPlaylistFinished();

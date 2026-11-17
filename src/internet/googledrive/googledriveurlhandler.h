@@ -1,6 +1,7 @@
 /* This file is part of Clementine.
    Copyright 2012, John Maguire <john.maguire@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +37,9 @@ class GoogleDriveUrlHandler : public UrlHandler {
     return IconLoader::Load("googledrive", IconLoader::Provider);
   }
   LoadResult StartLoading(const QUrl& url);
+
+  void ResolveUrl(const QUrl& url,
+                  UrlHandler::ResolveCallback callback) const override;
 
  private:
   GoogleDriveService* service_;

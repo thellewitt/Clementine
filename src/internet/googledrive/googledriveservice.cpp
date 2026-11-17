@@ -2,6 +2,7 @@
    Copyright 2012, 2014, John Maguire <john.maguire@gmail.com>
    Copyright 2012, 2014, David Sansome <me@davidsansome.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,8 +49,6 @@ const char* GoogleDriveService::kServiceName = "Google Drive";
 const char* GoogleDriveService::kSettingsGroup = "GoogleDrive";
 
 namespace {
-
-static const char* kDriveEditFileUrl = "https://docs.google.com/file/d/%1/edit";
 static const char* kServiceId = "google_drive";
 
 // Bumped whenever the requested OAuth scope changes in a way that requires
@@ -61,9 +60,10 @@ static const int kScopeVersion = 2;
 // Mime types the picker's file view is restricted to. Keep in sync with
 // CloudFileService::IsSupportedMimeType.
 QStringList PickableMimeTypes() {
-  return QStringList() << "audio/ogg" << "audio/mpeg" << "audio/mp4"
-                       << "audio/flac" << "audio/x-flac" << "application/ogg"
-                       << "application/x-flac" << "audio/x-ms-wma";
+  return QStringList()
+         << "audio/ogg" << "audio/mpeg" << "audio/mp4"
+         << "audio/flac" << "audio/x-flac" << "application/ogg"
+         << "application/x-flac" << "audio/x-ms-wma" << "video/mp4";
 }
 }  // namespace
 
@@ -122,6 +122,7 @@ void GoogleDriveService::LoadPickedItems() {
     item.id = s.value("id").toString();
     item.title = s.value("title").toString();
     item.resource_key = s.value("resource_key").toString();
+    item.web_view_link = s.value("web_view_link").toString();
     picked_items_ << item;
   }
   s.endArray();
@@ -137,16 +138,35 @@ void GoogleDriveService::SavePickedItems() const {
     s.setValue("id", picked_items_[i].id);
     s.setValue("title", picked_items_[i].title);
     s.setValue("resource_key", picked_items_[i].resource_key);
+    s.setValue("web_view_link", picked_items_[i].web_view_link);
   }
   s.endArray();
 }
 
-void GoogleDriveService::AddPickedItem(const QString& id, const QString& title,
-                                       const QString& resource_key) {
-  for (const PickedItem& item : picked_items_) {
+void GoogleDriveService::AddPickedItem(
+    const QString& id, const QString& title,
+    const QString& resource_key, const QString& web_view_link) {
+  for (PickedItem& item : picked_items_) {
     if (item.id == id) {
-      // Already tracking this file (eg. the user re-picked it, or this is
-      // a full rescan re-adding it).
+      bool changed = false;
+
+      if (!title.isEmpty() && item.title != title) {
+        item.title = title;
+        changed = true;
+      }
+
+      if (!resource_key.isEmpty() && item.resource_key != resource_key) {
+        item.resource_key = resource_key;
+        changed = true;
+      }
+
+      if (!web_view_link.isEmpty() &&
+          item.web_view_link != web_view_link) {
+        item.web_view_link = web_view_link;
+        changed = true;
+      }
+
+      if (changed) SavePickedItems();
       return;
     }
   }
@@ -155,6 +175,7 @@ void GoogleDriveService::AddPickedItem(const QString& id, const QString& title,
   item.id = id;
   item.title = title;
   item.resource_key = resource_key;
+  item.web_view_link = web_view_link;
   picked_items_ << item;
 
   SavePickedItems();
@@ -163,11 +184,8 @@ void GoogleDriveService::AddPickedItem(const QString& id, const QString& title,
 
 void GoogleDriveService::Connect() {
   if (refresh_token().isEmpty()) {
-    // Nothing to silently reconnect with - drive.file access can only ever
-    // be granted via the combined OAuth+Picker flow in AddFiles(), so
-    // there's no "just log in" step to fall back to here. Callers that
-    // need to block until connected (EnsureConnected()) check for this
-    // themselves rather than waiting on a signal that would never come.
+    // No stored credentials are available for silent reconnection.
+    // Interactive account authorization is handled by AuthorizeAccount().
     qLog(Debug) << "Google Drive: no stored credentials to reconnect with";
     return;
   }
@@ -185,6 +203,15 @@ void GoogleDriveService::Connect() {
   google_drive::ConnectResponse* response = client_->Connect(refresh_token());
   NewClosure(response, SIGNAL(Finished()), this,
              SLOT(ConnectFinished(google_drive::ConnectResponse*)), response);
+}
+
+void GoogleDriveService::AuthorizeAccount() {
+  google_drive::ConnectResponse* response =
+      client_->AuthorizeAccount();
+
+  NewClosure(response, SIGNAL(Finished()), this,
+             SLOT(ConnectFinished(google_drive::ConnectResponse*)),
+             response);
 }
 
 void GoogleDriveService::ForgetCredentials() {
@@ -214,6 +241,16 @@ void GoogleDriveService::AddFiles() {
 void GoogleDriveService::AuthorizeAndPickFinished(
     google_drive::ConnectResponse* response) {
   response->deleteLater();
+
+  if (response->had_error()) {
+    if (response->error_message() == "access_denied") {
+      qLog(Debug) << "Google Drive file selection cancelled";
+    } else {
+      app_->AddError(tr("Google Drive file selection failed:\n%1")
+                       .arg(response->error_message()));
+    }
+    return;
+  }
 
   qLog(Debug) << "AuthorizeAndPick finished: picked ids ="
               << response->picked_file_ids();
@@ -259,7 +296,10 @@ void GoogleDriveService::AddPickedItemFinished(
   // AuthorizeAndPick redirect (or a rescan of an already-tracked item, in
   // which case AddPickedItem() below is a no-op since it's already tracked
   // - see DoFullRescan()) returned, and that flow doesn't hand one back.
-  AddPickedItem(response->file_id(), response->file().title(), QString());
+  AddPickedItem(response->file_id(),
+                response->file().title(),
+                QString(),
+                response->file().web_view_link());
   FilesFound(google_drive::FileList() << response->file());
 }
 
@@ -329,6 +369,16 @@ void GoogleDriveService::ConnectFinished(
   response->deleteLater();
   connect_in_progress_ = false;
 
+  if (response->had_error()) {
+    qLog(Warning) << "Google Drive connection failed:"
+                  << response->error_message();
+    app_->AddError(tr("Google Drive connection failed:\n%1")
+                        .arg(response->error_message()));
+    emit ConnectionAttemptFinished();
+    return;
+
+  }
+
   // Save the refresh token
   QSettings s;
   s.beginGroup(kSettingsGroup);
@@ -344,6 +394,7 @@ void GoogleDriveService::ConnectFinished(
 
   // Find all the changes since the last check.
   CheckForUpdates();
+  emit ConnectionAttemptFinished();
 }
 
 void GoogleDriveService::EnsureConnected() {
@@ -359,7 +410,8 @@ void GoogleDriveService::EnsureConnected() {
   }
 
   QEventLoop loop;
-  connect(client_, SIGNAL(Authenticated()), &loop, SLOT(quit()));
+  connect(this, SIGNAL(ConnectionAttemptFinished()),
+          &loop, SLOT(quit()));
   Connect();
   loop.exec();
 }
@@ -461,18 +513,37 @@ void GoogleDriveService::UpdateContextMenu() {
 }
 
 void GoogleDriveService::OpenWithDrive() {
-  // Map indexes to the actual library model.
   QModelIndexList library_indexes;
+
   for (const QModelIndex& index : model()->selected_indexes()) {
     if (index.model() == library_sort_model_) {
       library_indexes << library_sort_model_->mapToSource(index);
     }
   }
 
-  // Ask the library for the songs for these indexes.
   for (const Song& song : library_model_->GetChildSongs(library_indexes)) {
-    QDesktopServices::openUrl(
-        QUrl(QString(kDriveEditFileUrl).arg(song.url().path())));
+    const QString file_id = song.url().path().mid(1);
+    bool found = false;
+
+    for (const PickedItem& item : picked_items_) {
+      if (item.id != file_id) continue;
+
+      found = true;
+      const QUrl url(item.web_view_link);
+
+      if (!url.isValid() || url.scheme() != "https" ||
+          url.host().isEmpty()) {
+        qLog(Error) << "Invalid Google Drive webViewLink for" << file_id;
+        break;
+      }
+
+      QDesktopServices::openUrl(url);
+      break;
+    }
+
+    if (!found) {
+      qLog(Warning) << "Google Drive item not found:" << file_id;
+    }
   }
 }
 
@@ -500,6 +571,17 @@ void GoogleDriveService::DoFullRescan() {
 }
 
 void GoogleDriveService::CheckForUpdates() {
+  if (!client_->is_authenticated()) {
+    if (refresh_token().isEmpty()) {
+      qLog(Debug) << "Google Drive: skipping update check; not connected";
+      return;
+    }
+
+    qLog(Debug) << "Google Drive: reconnecting before update check";
+    Connect();
+    return;
+  }
+
   QSettings s;
   s.beginGroup(kSettingsGroup);
   ListChanges(s.value("cursor").toString());

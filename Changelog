@@ -1,21 +1,25 @@
 Version 1.4.2+mintian:
   Major features:
-    * Redesign lyrics lookup with LRCLIB as the primary provider.
-    * Add configurable LRCLIB support and refine backup lyrics-provider handling.
+    * Separate Google Drive account authorization from individual file selection.
+    * Add authenticated stream-detail discovery for Google Drive tracks.
+    * Add the Hotmixxx Vault to Intergalactic FM.
 
   Other features:
-    * Add an "Added in the last 30 days" smart playlist.
-    * Require projectM 4.2 or newer when using system-installed libraries.
-    * Improve Jamendo dynamic playlists with independent category pagination
-      and round-robin discovery.
-    * Make full-width playback controls and moodbar placement the default
-      for new configurations.
+    * Modernize Jamendo API discovery and service lifecycle.
+    * Modernize Intergalactic FM integration.
+    * Preserve Google Drive file links for opening selected songs in a browser.
+    * Extend Google Drive file selection to include MP4 video.
+    * Improve cloud-file metadata handling, including filename fallback.
+    * Improve stream discovery diagnostics and resolved media URL reporting.
+    * Improve moodbar layout with full-width playback controls.
 
   Bugfixes:
-    * Fix switching to the Search, Library, and Internet tabs.
-    * Improve lyrics-provider fallback and lookup reliability.
-    * Improve Jamendo playlist reliability with spaced retries for empty
-      API responses and more robust track handling.
+    * Improve OAuth redirect handling, error reporting, and silent token refresh.
+    * Prevent duplicate cloud files from being indexed concurrently.
+    * Eliminate duplicate entries in Cover Manager.
+    * Improve SomaFM playlist URL resolution for stream details.
+    * Improve Radio Browser stream resolution and use HTTPS.
+    * Improve Jamendo discovery reliability and track handling.
 
 
 

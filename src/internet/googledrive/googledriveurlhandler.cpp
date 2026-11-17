@@ -1,6 +1,7 @@
 /* This file is part of Clementine.
    Copyright 2012, 2014, John Maguire <john.maguire@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,4 +34,23 @@ UrlHandler::LoadResult GoogleDriveUrlHandler::StartLoading(const QUrl& url) {
   LoadResult res(url, type, real_url);
   res.auth_header_ = service_->client()->GetAuthHeader();
   return res;
+}
+
+void GoogleDriveUrlHandler::ResolveUrl(
+    const QUrl& url, UrlHandler::ResolveCallback callback) const {
+  if (!callback) return;
+
+  const QString file_id = url.path().remove(QChar('/'));
+  const QUrl real_url = service_->GetStreamingUrlFromSongId(file_id);
+
+  const LoadResult::Type type =
+      real_url.isValid() ? LoadResult::TrackAvailable : LoadResult::Error;
+
+  LoadResult result(url, type, real_url);
+
+  if (type == LoadResult::TrackAvailable) {
+    result.auth_header_ = service_->client()->GetAuthHeader();
+  }
+
+  callback(result);
 }

@@ -2,6 +2,7 @@
    Copyright 2012, David Sansome <me@davidsansome.com>
    Copyright 2013-2014, John Maguire <john.maguire@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,10 +87,8 @@ void GoogleDriveSettingsPage::Save() {
 }
 
 void GoogleDriveSettingsPage::LoginClicked() {
-  // There's no separate "just log in" step under drive.file scope - a login
-  // without picking anything grants access to nothing, so this performs the
-  // same combined OAuth+Picker flow as "Add files" below.
-  service_->AddFiles();
+  // Connect the Google account independently of file selection.
+  service_->AuthorizeAccount();
   ui_->login_button->setEnabled(false);
 }
 

@@ -2,6 +2,7 @@
    Copyright 2012, David Sansome <me@davidsansome.com>
    Copyright 2012, 2014, John Maguire <john.maguire@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,6 +51,7 @@ class File {
   QString etag() const { return data_["version"].toString(); }
   QString title() const { return data_["name"].toString(); }
   QString mime_type() const { return data_["mimeType"].toString(); }
+  QString web_view_link() const { return data_["webViewLink"].toString(); }
   QString description() const { return data_["description"].toString(); }
   qint64 size() const { return data_["size"].toString().toLongLong(); }
   // v3 dropped the v2 "downloadUrl" field - content is fetched from the
@@ -80,6 +82,8 @@ class ConnectResponse : public QObject {
  public:
   const QString& refresh_token() const { return refresh_token_; }
   const QString& user_email() const { return user_email_; }
+  bool had_error() const { return had_error_; }
+  const QString& error_message() const { return error_message_; }
   // Only ever populated by Client::AuthorizeAndPick - empty for a plain
   // Client::Connect() (silent refresh, or a login with no picking).
   const QStringList& picked_file_ids() const { return picked_file_ids_; }
@@ -91,6 +95,8 @@ class ConnectResponse : public QObject {
   explicit ConnectResponse(QObject* parent);
   QString refresh_token_;
   QString user_email_;
+  bool had_error_;
+  QString error_message_;
   QStringList picked_file_ids_;
 };
 
@@ -151,6 +157,9 @@ class Client : public QObject {
   // new, since drive.file access can only ever be extended via
   // AuthorizeAndPick.
   ConnectResponse* Connect(const QString& refresh_token);
+  // Interactive account authorization without opening the Picker.
+  // File access is granted separately through AuthorizeAndPick().
+  ConnectResponse* AuthorizeAccount();
   // Performs Google's combined OAuth-consent + Picker "One Pick" flow
   // required to get drive.file access to specific files on a desktop app
   // (see

@@ -1,3 +1,20 @@
+/* This file is part of Clementine.
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
+
+   Clementine is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   Clementine is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with Clementine.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "streamdiscoverer.h"
 
 #include <gst/pbutils/pbutils.h>
@@ -21,6 +38,7 @@ StreamDiscoverer::StreamDiscoverer() : QObject(nullptr) {
   // Connecting its signals:
   CHECKED_GCONNECT(discoverer_, "discovered", &OnDiscovered, this);
   CHECKED_GCONNECT(discoverer_, "finished", &OnFinished, this);
+  CHECKED_GCONNECT(discoverer_, "source-setup", &OnSourceSetup, this);
 
   // Starting the discoverer process:
   gst_discoverer_start(discoverer_);
@@ -31,15 +49,21 @@ StreamDiscoverer::~StreamDiscoverer() {
   g_object_unref(discoverer_);
 }
 
-void StreamDiscoverer::Discover(const QString& url) {
-  // Adding the request to discover the url given as a parameter:
+void StreamDiscoverer::Discover(const QString& url,
+                                const QByteArray& auth_header) {
+  auth_header_ = auth_header;
+
   qLog(Debug) << "Discover" << url;
+
   if (!gst_discoverer_discover_uri_async(discoverer_,
                                          url.toStdString().c_str())) {
     qLog(Error) << "Failed to start discovering" << url;
+    auth_header_.clear();
     return;
   }
+
   WaitForSignal(this, SIGNAL(DiscoverFinished()));
+  auth_header_.clear();
 }
 
 void StreamDiscoverer::OnDiscovered(GstDiscoverer* discoverer,
@@ -135,4 +159,28 @@ QString StreamDiscoverer::GSTdiscovererErrorMessage(
     default:
       return tr("Could not get details");
   }
+}
+
+void StreamDiscoverer::OnSourceSetup(GstDiscoverer* discoverer,
+                                     GstElement* source, gpointer self) {
+  StreamDiscoverer* instance =
+      reinterpret_cast<StreamDiscoverer*>(self);
+
+  if (instance->auth_header_.isEmpty()) return;
+
+  if (!g_object_class_find_property(G_OBJECT_GET_CLASS(source),
+                                    "extra-headers")) {
+    qLog(Debug) << "GStreamer source does not support extra HTTP headers:"
+                << GST_ELEMENT_NAME(source);
+    return;
+  }
+
+  GstStructure* headers = gst_structure_new(
+      "headers", "Authorization", G_TYPE_STRING,
+      instance->auth_header_.constData(), nullptr);
+
+  g_object_set(source, "extra-headers", headers, nullptr);
+  gst_structure_free(headers);
+
+  qLog(Debug) << "Configured authenticated HTTP source for discovery";
 }

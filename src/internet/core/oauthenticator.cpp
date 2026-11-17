@@ -3,6 +3,7 @@
    Copyright 2012, 2014, David Sansome <me@davidsansome.com>
    Copyright 2014, Arnaud Bienner <arnaud.bienner@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,15 +91,47 @@ void OAuthenticator::StartAuthorisation(const QString& oauth_endpoint,
 }
 
 void OAuthenticator::RedirectArrived(LocalRedirectServer* server, QUrl url) {
+  const QUrl request_url = server->request_url();
   server->deleteLater();
-  QUrl request_url = server->request_url();
+
   QUrlQuery request_query(request_url);
-  // FullyDecoded: the default (PrettyDecoded) deliberately leaves
-  // delimiter-like %-escapes (eg. %2C for a comma) encoded, which would
-  // otherwise corrupt a later split(',') on this value.
+
+  // FullyDecoded prevents delimiter-like %-escapes from corrupting
+  // values that may subsequently be split.
   picked_file_ids_ =
       request_query.queryItemValue("picked_file_ids", QUrl::FullyDecoded);
-  RequestAccessToken(request_query.queryItemValue("code").toUtf8(), url);
+
+  const QString authorization_code =
+      request_query.queryItemValue("code", QUrl::FullyDecoded);
+  const QString error =
+      request_query.queryItemValue("error", QUrl::FullyDecoded);
+  const QString error_description =
+      request_query.queryItemValue("error_description", QUrl::FullyDecoded);
+
+  qLog(Debug) << "OAuth redirect:"
+              << "has_code =" << !authorization_code.isEmpty()
+              << "error =" << error
+              << "description =" << error_description;
+
+    if (!error.isEmpty()) {
+      const QString message = error_description.isEmpty()
+                                  ? error
+                                  : QString("%1: %2").arg(error, error_description);
+
+      qLog(Warning) << "OAuth authorization failed:" << message;
+      emit Failed(message);
+      return;
+    }
+
+    if (authorization_code.isEmpty()) {
+      const QString message =
+          tr("OAuth redirect did not contain an authorization code");
+      qLog(Error) << message;
+      emit Failed(message);
+      return;
+    }
+
+    RequestAccessToken(authorization_code.toUtf8(), url);
 }
 
 QByteArray OAuthenticator::ParseHttpRequest(const QByteArray& request) const {
@@ -129,7 +162,7 @@ void OAuthenticator::RequestAccessToken(const QByteArray& code,
         p.first, QString(QUrl::toPercentEncoding(p.second))));
   }
   QString post_data = params.join("&");
-  qLog(Debug) << post_data;
+  qLog(Debug) << "Requesting OAuth access token";
 
   QNetworkRequest request = QNetworkRequest(QUrl(token_endpoint_));
   request.setHeader(QNetworkRequest::ContentTypeHeader,
@@ -145,23 +178,56 @@ void OAuthenticator::RequestAccessToken(const QByteArray& code,
 void OAuthenticator::FetchAccessTokenFinished(QNetworkReply* reply) {
   reply->deleteLater();
 
-  if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute) != 200) {
-    qLog(Error) << "Failed to get access token" << reply->readAll();
+  const int status =
+      reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+  const QByteArray response_body = reply->readAll();
+
+  QJsonParseError parse_error;
+  const QJsonDocument json_document =
+      QJsonDocument::fromJson(response_body, &parse_error);
+
+  if (reply->error() != QNetworkReply::NoError || status != 200) {
+    const QJsonObject error_object = json_document.object();
+    QString detail = error_object["error_description"].toString();
+
+    if (detail.isEmpty()) {
+      detail = error_object["error"].toString();
+    }
+    if (detail.isEmpty()) {
+      detail = reply->errorString();
+    }
+    if (detail.isEmpty()) {
+      detail = tr("HTTP error %1").arg(status);
+    }
+
+    const QString message =
+        tr("Failed to get OAuth access token: %1").arg(detail);
+
+    qLog(Error) << message;
+    emit Failed(message);
     return;
   }
 
-  QJsonParseError error;
-  QJsonDocument json_document =
-      QJsonDocument::fromJson(reply->readAll(), &error);
-
-  if (error.error != QJsonParseError::NoError) {
-    qLog(Error) << "Failed to parse oauth reply";
+  if (parse_error.error != QJsonParseError::NoError) {
+    const QString message = tr("Failed to parse OAuth token response");
+    qLog(Error) << message << parse_error.errorString();
+    emit Failed(message);
     return;
   }
 
-  QJsonObject result = json_document.object();
+  const QJsonObject result = json_document.object();
+
   access_token_ = result["access_token"].toString();
   refresh_token_ = result["refresh_token"].toString();
+
+  if (access_token_.isEmpty()) {
+    const QString message =
+        tr("OAuth token response did not contain an access token");
+    qLog(Error) << message;
+    emit Failed(message);
+    return;
+  }
+
   SetExpiryTime(result["expires_in"].toInt());
 
   emit Finished();
@@ -203,13 +269,56 @@ void OAuthenticator::SetExpiryTime(int expires_in_seconds) {
 void OAuthenticator::RefreshAccessTokenFinished(QNetworkReply* reply) {
   reply->deleteLater();
 
-  QJsonObject json_result = QJsonDocument::fromJson(reply->readAll()).object();
+  const int status =
+      reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+  const QByteArray response_body = reply->readAll();
 
-  access_token_ = json_result["access_token"].toString();
-  if (json_result.contains("refresh_token")) {
-    refresh_token_ = json_result["refresh_token"].toString();
+  QJsonParseError parse_error;
+  const QJsonDocument document =
+      QJsonDocument::fromJson(response_body, &parse_error);
+
+  if (reply->error() != QNetworkReply::NoError || status != 200) {
+    const QJsonObject error_object = document.object();
+    QString detail = error_object["error_description"].toString();
+
+    if (detail.isEmpty()) {
+      detail = error_object["error"].toString();
+    }
+    if (detail.isEmpty()) {
+      detail = reply->errorString();
+    }
+
+    const QString message =
+        tr("Failed to refresh OAuth access token: %1").arg(detail);
+
+    qLog(Error) << message;
+    emit Failed(message);
+    return;
   }
-  SetExpiryTime(json_result["expires_in"].toInt());
+
+  if (parse_error.error != QJsonParseError::NoError) {
+    const QString message = tr("Failed to parse OAuth refresh response");
+    qLog(Error) << message << parse_error.errorString();
+    emit Failed(message);
+    return;
+  }
+
+  const QJsonObject result = document.object();
+  access_token_ = result["access_token"].toString();
+
+  if (result.contains("refresh_token")) {
+    refresh_token_ = result["refresh_token"].toString();
+  }
+
+  if (access_token_.isEmpty()) {
+    const QString message =
+        tr("OAuth refresh response did not contain an access token");
+    qLog(Error) << message;
+    emit Failed(message);
+    return;
+  }
+
+  SetExpiryTime(result["expires_in"].toInt());
   emit Finished();
 }
 

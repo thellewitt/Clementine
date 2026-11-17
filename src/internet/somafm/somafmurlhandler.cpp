@@ -3,6 +3,7 @@
    Copyright 2012, Olaf Christ <olafc81@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
    Copyright 2014, John Maguire <john.maguire@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,6 +54,41 @@ UrlHandler::LoadResult SomaFMUrlHandler::StartLoading(const QUrl& url) {
     task_id_ = app_->task_manager()->StartTask(tr("Loading stream"));
 
   return LoadResult(url, LoadResult::WillLoadAsynchronously);
+}
+
+void SomaFMUrlHandler::ResolveUrl(
+    const QUrl& url, ResolveCallback callback) const {
+  if (!callback) return;
+
+  QUrl playlist_url = url;
+  playlist_url.setScheme("https");
+
+  QNetworkReply* reply =
+      service_->network()->get(QNetworkRequest(playlist_url));
+
+  connect(reply, &QNetworkReply::finished, reply,
+          [reply, url, callback]() {
+            LoadResult result(url, LoadResult::Error);
+
+            if (reply->error() != QNetworkReply::NoError) {
+              qLog(Error) << "Failed to resolve SomaFM playlist:"
+                          << reply->errorString();
+            } else {
+              PlaylistParser parser(nullptr);
+              QList<Song> songs = parser.LoadFromDevice(reply);
+
+              if (!songs.isEmpty() && !songs.first().url().isEmpty()) {
+                result = LoadResult(
+                    url, LoadResult::TrackAvailable, songs.first().url());
+              } else {
+                qLog(Error) << "Failed to parse SomaFM playlist:"
+                            << url.toString();
+              }
+            }
+
+            reply->deleteLater();
+            callback(result);
+          });
 }
 
 void SomaFMUrlHandler::LoadPlaylistFinished() {

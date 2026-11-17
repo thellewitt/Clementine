@@ -2,6 +2,7 @@
    Copyright 2012, 2014, John Maguire <john.maguire@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
    Copyright 2014, David Sansome <me@davidsansome.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +22,8 @@
 #define INTERNET_CORE_CLOUDFILESERVICE_H_
 
 #include <QMenu>
+#include <QSet>
+#include <QUrl>
 #include <memory>
 
 #include "core/tagreaderclient.h"
@@ -90,6 +93,7 @@ class CloudFileService : public InternetService {
   PlaylistManager* playlist_manager_;
   TaskManager* task_manager_;
   QList<TagReaderClient::ReplyType*> pending_tagreader_replies_;
+  QSet<QUrl> pending_index_urls_;
 
  private:
   QIcon icon_;

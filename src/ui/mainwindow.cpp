@@ -1,5 +1,6 @@
 /* This file is part of Clementine.
    Copyright 2010, David Sansome <me@davidsansome.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2041,7 +2042,8 @@ void MainWindow::DiscoverStreamDetails() {
       return;
     }
 
-    stream_discoverer_->Discover(result.media_url_.toString());
+    stream_discoverer_->Discover(result.media_url_.toString(),
+                                 result.auth_header_);
   });
 }
 

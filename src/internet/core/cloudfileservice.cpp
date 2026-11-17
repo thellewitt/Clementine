@@ -3,6 +3,7 @@
    Copyright 2013, Martin Brodbeck <martin@brodbeck-online.de>
    Copyright 2013-2014, David Sansome <me@davidsansome.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,11 +131,18 @@ bool CloudFileService::ShouldIndexFile(const QUrl& url,
   if (!IsSupportedMimeType(mime_type)) {
     return false;
   }
+
   Song library_song = library_backend_->GetSongByUrl(url);
   if (library_song.is_valid()) {
     qLog(Debug) << "Already have:" << url;
     return false;
   }
+
+  if (pending_index_urls_.contains(url)) {
+    qLog(Debug) << "Already indexing:" << url;
+    return false;
+  }
+
   return true;
 }
 
@@ -145,6 +153,7 @@ void CloudFileService::MaybeAddFileToDatabase(const Song& metadata,
   if (!ShouldIndexFile(metadata.url(), mime_type)) {
     return;
   }
+  pending_index_urls_.insert(metadata.url());
 
   if (indexing_task_id_ == -1) {
     indexing_task_id_ = task_manager_->StartTask(tr("Indexing %1").arg(name()));
@@ -191,6 +200,7 @@ void CloudFileService::ReadTagsFinished(TagReaderClient::ReplyType* reply,
   const cpb::tagreader::ReadCloudFileResponse& message =
       reply->message().read_cloud_file_response();
   if (!message.has_metadata() || !message.metadata().filesize()) {
+    pending_index_urls_.remove(metadata.url());
     qLog(Debug) << "Failed to tag:" << metadata.url();
     return;
   }
@@ -201,10 +211,16 @@ void CloudFileService::ReadTagsFinished(TagReaderClient::ReplyType* reply,
 
   Song song;
   song.InitFromProtobuf(metadata_pb);
+
+  if (song.title().isEmpty()) {
+    song.set_title(metadata.title());
+  }
+
   song.set_directory_id(0);
 
   qLog(Debug) << "Adding song to db:" << song.title();
   library_backend_->AddOrUpdateSongs(SongList() << song);
+  pending_index_urls_.remove(metadata.url());
 }
 
 bool CloudFileService::IsSupportedMimeType(const QString& mime_type) const {
@@ -213,14 +229,14 @@ bool CloudFileService::IsSupportedMimeType(const QString& mime_type) const {
          mime_type == "audio/flac" || mime_type == "audio/x-flac" ||
          mime_type == "application/ogg" || mime_type == "application/x-flac" ||
          mime_type == "audio/x-ms-wma";
-}
+    }
 
 QString CloudFileService::GuessMimeTypeForFile(const QString& filename) const {
   if (filename.endsWith(".mp3", Qt::CaseInsensitive)) {
     return "audio/mpeg";
   } else if (filename.endsWith(".m4a", Qt::CaseInsensitive) ||
              filename.endsWith(".m4b", Qt::CaseInsensitive)) {
-    return "audio/mpeg";
+    return "audio/mp4";
   } else if (filename.endsWith(".ogg", Qt::CaseInsensitive) ||
              filename.endsWith(".opus", Qt::CaseInsensitive)) {
     return "application/ogg";
@@ -228,6 +244,8 @@ QString CloudFileService::GuessMimeTypeForFile(const QString& filename) const {
     return "application/x-flac";
   } else if (filename.endsWith(".wma", Qt::CaseInsensitive)) {
     return "audio/x-ms-wma";
+  } else if (filename.endsWith(".mp4", Qt::CaseInsensitive)) {
+    return "video/mp4";
   }
   return QString();
 }
@@ -235,6 +253,7 @@ QString CloudFileService::GuessMimeTypeForFile(const QString& filename) const {
 void CloudFileService::AbortReadTagsReplies() {
   qLog(Debug) << "Aborting the read tags replies";
   pending_tagreader_replies_.clear();
+  pending_index_urls_.clear();
 
   task_manager_->SetTaskFinished(indexing_task_id_);
   indexing_task_id_ = -1;

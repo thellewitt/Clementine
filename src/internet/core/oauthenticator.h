@@ -3,6 +3,7 @@
    Copyright 2012, 2014, John Maguire <john.maguire@gmail.com>
    Copyright 2014, Arnaud Bienner <arnaud.bienner@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,6 +75,7 @@ class OAuthenticator : public QObject {
 
  signals:
   void Finished();
+  void Failed(const QString& error);
 
  private slots:
   void RedirectArrived(LocalRedirectServer* server, QUrl url);

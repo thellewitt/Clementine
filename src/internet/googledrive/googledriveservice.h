@@ -2,6 +2,7 @@
    Copyright 2012, 2014, John Maguire <john.maguire@gmail.com>
    Copyright 2012, 2014, David Sansome <me@davidsansome.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,6 +46,7 @@ class GoogleDriveService : public CloudFileService {
     QString title;
     // Empty for most items - see google_drive::Client::GetFile.
     QString resource_key;
+    QString web_view_link;
   };
 
   virtual bool has_credentials() const override;
@@ -58,13 +60,12 @@ class GoogleDriveService : public CloudFileService {
 
  public slots:
   void Connect() override;
+  void AuthorizeAccount();
   void ForgetCredentials();
 
-  // Performs Google's combined OAuth-consent + Picker flow (opens the
-  // system browser) so the user can pick more files to index. Used both
-  // for the very first connection and for adding more later - a plain
-  // login without picking anything grants access to nothing at all under
-  // drive.file scope, so there's no separate "just log in" action.
+  // Opens Google's Picker so the user can grant Clementine access
+  // to individually selected files. Account authorization is
+  // handled separately by AuthorizeAccount().
   void AddFiles();
   // Forgets a previously-picked file and removes its song.
   void RemoveItem(const QString& id);
@@ -72,6 +73,7 @@ class GoogleDriveService : public CloudFileService {
  signals:
   void Connected();
   void PickedItemsChanged();
+  void ConnectionAttemptFinished();
 
  private slots:
   void ConnectFinished(google_drive::ConnectResponse* response);
@@ -93,7 +95,8 @@ class GoogleDriveService : public CloudFileService {
   void RefreshAuthorisation(const QString& refresh_token);
   void ListChanges(const QString& cursor);
   void AddPickedItem(const QString& id, const QString& title,
-                     const QString& resource_key);
+                     const QString& resource_key,
+                     const QString& web_view_link);
   void LoadPickedItems();
   void SavePickedItems() const;
   void MigrateLegacyCredentials();
