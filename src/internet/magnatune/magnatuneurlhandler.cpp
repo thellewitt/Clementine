@@ -2,6 +2,7 @@
    Copyright 2011, David Sansome <me@davidsansome.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
    Copyright 2014, John Maguire <john.maguire@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,4 +28,12 @@ MagnatuneUrlHandler::MagnatuneUrlHandler(MagnatuneService* service,
 
 UrlHandler::LoadResult MagnatuneUrlHandler::StartLoading(const QUrl& url) {
   return LoadResult(url, LoadResult::TrackAvailable, service_->ModifyUrl(url));
+}
+
+void MagnatuneUrlHandler::ResolveUrl(
+    const QUrl& url, UrlHandler::ResolveCallback callback) const {
+  if (!callback) return;
+
+  callback(
+      LoadResult(url, LoadResult::TrackAvailable, service_->ModifyUrl(url)));
 }

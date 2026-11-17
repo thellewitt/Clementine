@@ -4,6 +4,7 @@
    Copyright 2011, Andrea Decorte <adecorte@gmail.com>
    Copyright 2011, 2014, John Maguire <john.maguire@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,13 +68,25 @@ const char* kMagnatuneDownloadValidateUrl = "http://download.magnatune.com/";
 const char* kMagnatuneStreamingValidateUrl = "http://streaming.magnatune.com/";
 
 void MagnatuneSettingsPage::UpdateLoginState() {
+  if (ui_->membership->currentIndex() == MagnatuneService::Membership_None) {
+    logged_in_ = false;
+  }
+
   ui_->login_state->SetLoggedIn(
       logged_in_ ? LoginStateWidget::LoggedIn : LoginStateWidget::LoggedOut,
       ui_->username->text());
+
   ui_->login_state->SetAccountTypeVisible(!logged_in_);
+
+  MembershipChanged(ui_->membership->currentIndex());
 }
 
 void MagnatuneSettingsPage::Login() {
+  if (ui_->membership->currentIndex() == MagnatuneService::Membership_None) {
+    logged_in_ = false;
+    UpdateLoginState();
+    return;
+  }
   MagnatuneService::MembershipType type =
       MagnatuneService::MembershipType(ui_->membership->currentIndex());
 
@@ -163,6 +176,14 @@ void MagnatuneSettingsPage::Save() {
 void MagnatuneSettingsPage::MembershipChanged(int value) {
   bool enabled = MagnatuneService::MembershipType(value) !=
                  MagnatuneService::Membership_None;
+
+  if (!enabled) {
+    logged_in_ = false;
+    ui_->login_state->SetLoggedIn(LoginStateWidget::LoggedOut,
+                                  ui_->username->text());
+    ui_->login_state->SetAccountTypeVisible(true);
+  }
+
   ui_->login_container->setEnabled(enabled);
   ui_->preferences_group->setEnabled(enabled);
 }

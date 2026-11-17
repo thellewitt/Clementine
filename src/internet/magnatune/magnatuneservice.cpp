@@ -6,6 +6,7 @@
    Copyright 2012, 2014, John Maguire <john.maguire@gmail.com>
    Copyright 2013, Alan Briolat <alan.briolat@gmail.com>
    Copyright 2014, Krzysztof Sobiecki <sobkas@gmail.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,9 +62,9 @@ const char* MagnatuneService::kSettingsGroup = "Magnatune";
 const char* MagnatuneService::kSongsTable = "magnatune_songs";
 const char* MagnatuneService::kFtsTable = "magnatune_songs_fts";
 
-const char* MagnatuneService::kHomepage = "http://magnatune.com";
+const char* MagnatuneService::kHomepage = "https://magnatune.com";
 const char* MagnatuneService::kDatabaseUrl =
-    "http://magnatune.com/info/song_info_xml.gz";
+    "https://magnatune.com/info/song_info_xml.gz";
 const char* MagnatuneService::kStreamingHostname = "streaming.magnatune.com";
 const char* MagnatuneService::kDownloadHostname = "download.magnatune.com";
 
@@ -220,7 +221,17 @@ Song MagnatuneService::ReadTrack(QXmlStreamReader& reader) {
         song.set_genre(value.section(',', 0, 0));
       if (name == QLatin1String("seconds"))
         song.set_length_nanosec(value.toInt() * kNsecPerSec);
-      if (name == QLatin1String("cover_small")) song.set_art_automatic(value);
+      if (name == QLatin1String("cover_small")) {
+        QUrl cover_url(value);
+        if (cover_url.host().endsWith(QLatin1String(".magnatune.com")) ||
+            cover_url.host() == QLatin1String("magnatune.com")) {
+          cover_url.setScheme("https");
+          cover_url.setHost("magnatune.com");
+          song.set_art_automatic(cover_url.toString(QUrl::FullyEncoded));
+        } else {
+          song.set_art_automatic(value);
+        }
+      }
       if (name == QLatin1String("albumsku")) song.set_comment(value);
       if (name == QLatin1String("url")) {
         QUrl url;
@@ -318,17 +329,20 @@ void MagnatuneService::Homepage() {
 
 QUrl MagnatuneService::ModifyUrl(const QUrl& url) const {
   QUrl ret(url);
-  ret.setScheme("http");
 
   switch (membership_) {
     case Membership_None:
-      return ret;  // Use the URL as-is
+      ret.setScheme("https");
+      ret.setHost("magnatune.com");
+      return ret;
 
-    // Otherwise add the hostname
     case Membership_Streaming:
+      ret.setScheme("http");
       ret.setHost(kStreamingHostname);
       break;
+
     case Membership_Download:
+      ret.setScheme("http");
       ret.setHost(kDownloadHostname);
       break;
   }
