@@ -61,7 +61,7 @@ SomaFMServiceBase::SomaFMServiceBase(Application* app, InternetModel* parent,
       url_handler_(new SomaFMUrlHandler(app, this, this)),
       root_(nullptr),
       network_(new NetworkAccessManager(this)),
-      streams_(name, "streams", kStreamsCacheDurationSecs),
+      streams_(name, "streams_v2", kStreamsCacheDurationSecs),
       name_(name),
       channel_list_url_(channel_list_url),
       homepage_url_(homepage_url),
@@ -170,6 +170,12 @@ void SomaFMServiceBase::ReadChannel(QXmlStreamReader& reader, StreamList* ret) {
           stream.title_ = reader.readElementText();
         } else if (reader.name() == QLatin1String("dj")) {
           stream.dj_ = reader.readElementText();
+        } else if (reader.name() == QLatin1String("image")) {
+          stream.image_url_ = QUrl(reader.readElementText());
+        } else if (reader.name() == QLatin1String("largeimage")) {
+          stream.large_image_url_ = QUrl(reader.readElementText());
+        } else if (reader.name() == QLatin1String("xlimage")) {
+          stream.xl_image_url_ = QUrl(reader.readElementText());
         } else if (reader.name() == QLatin1String("highestpls") &&
                    reader.attributes().value("format") ==
                        QLatin1String("aac")) {
@@ -199,6 +205,31 @@ Song SomaFMServiceBase::Stream::ToSong(const QString& prefix) const {
   ret.set_title(song_title);
   ret.set_artist(dj_);
   ret.set_url(url_);
+
+  QUrl artwork_url;
+  if (!xl_image_url_.isEmpty()) {
+    artwork_url = xl_image_url_;
+  } else if (!large_image_url_.isEmpty()) {
+    artwork_url = large_image_url_;
+  } else {
+    artwork_url = image_url_;
+  }
+
+  if (!artwork_url.isEmpty() && artwork_url.isValid()) {
+    const QString host = artwork_url.host().toLower();
+
+    if (artwork_url.scheme() == QLatin1String("http") &&
+        (host == QLatin1String("somafm.com") ||
+         host.endsWith(QLatin1String(".somafm.com")))) {
+      artwork_url.setScheme(QLatin1String("https"));
+    }
+
+    if (artwork_url.scheme() == QLatin1String("https") ||
+        artwork_url.scheme() == QLatin1String("http")) {
+      ret.set_art_automatic(artwork_url.toString());
+    }
+  }
+
   return ret;
 }
 
@@ -246,12 +277,14 @@ void SomaFMServiceBase::PopulateStreams() {
 
 QDataStream& operator<<(QDataStream& out,
                         const SomaFMServiceBase::Stream& stream) {
-  out << stream.title_ << stream.dj_ << stream.url_;
+  out << stream.title_ << stream.dj_ << stream.url_ << stream.image_url_
+      << stream.large_image_url_ << stream.xl_image_url_;
   return out;
 }
 
 QDataStream& operator>>(QDataStream& in, SomaFMServiceBase::Stream& stream) {
-  in >> stream.title_ >> stream.dj_ >> stream.url_;
+  in >> stream.title_ >> stream.dj_ >> stream.url_ >> stream.image_url_
+      >> stream.large_image_url_ >> stream.xl_image_url_;
   return in;
 }
 

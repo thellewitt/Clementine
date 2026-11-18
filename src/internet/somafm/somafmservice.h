@@ -49,6 +49,9 @@ class SomaFMServiceBase : public InternetService {
     QString title_;
     QString dj_;
     QUrl url_;
+    QUrl image_url_;
+    QUrl large_image_url_;
+    QUrl xl_image_url_;
 
     Song ToSong(const QString& prefix) const;
   };
