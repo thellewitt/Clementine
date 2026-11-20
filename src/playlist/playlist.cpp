@@ -1,5 +1,6 @@
 /* This file is part of Clementine.
    Copyright 2010, David Sansome <me@davidsansome.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1798,6 +1799,34 @@ void Playlist::SetStreamMetadata(const QUrl& url, const Song& song) {
   UpdateScrobblePoint();
 
   InformOfCurrentSongChange();
+}
+
+bool Playlist::SetStreamArt(const Song& song) {
+  if (!song.is_valid() || !song.is_stream() ||
+      song.art_manual().isEmpty()) {
+    return false;
+  }
+
+  PlaylistItemPtr item = current_item();
+  if (!item || item->Url() != song.url()) {
+    return false;
+  }
+
+  Song metadata = item->Metadata();
+
+  // An asynchronous artwork result must still belong to this track.
+  if (!metadata.is_stream() ||
+      metadata.artist() != song.artist() ||
+      metadata.title() != song.title() ||
+      metadata.album() != song.album()) {
+    return false;
+  }
+
+  metadata.set_art_manual(song.art_manual());
+  item->SetTemporaryMetadata(metadata);
+  ItemChanged(item);
+
+  return true;
 }
 
 void Playlist::ClearStreamMetadata() {

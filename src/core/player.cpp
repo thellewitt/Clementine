@@ -567,7 +567,18 @@ void Player::EngineMetadataReceived(const Engine::SimpleMetaBundle& bundle) {
 
   Engine::SimpleMetaBundle bundle_copy = bundle;
 
-  // Maybe the metadata is from icycast and has "Artist - Title" shoved
+  // Extract album or mix title from pipe-delimited ICY metadata.
+  // IntergalacticFM uses: Artist - Title | Album | Label | Year | Country
+  const QStringList icy_fields = bundle_copy.title.split(QLatin1Char('|'));
+  if (icy_fields.size() > 1) {
+    bundle_copy.title = icy_fields.at(0).trimmed();
+
+    if (bundle_copy.album.isEmpty()) {
+      bundle_copy.album = icy_fields.at(1).trimmed();
+    }
+  }
+
+  // Maybe the metadata from icycast has "Artist - Title" shoved
   // together in the title field.
   const int dash_pos = bundle_copy.title.indexOf('-');
   if (dash_pos != -1 && bundle_copy.artist.isEmpty()) {

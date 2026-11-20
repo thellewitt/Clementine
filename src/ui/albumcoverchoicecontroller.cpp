@@ -1,6 +1,7 @@
 /* This file is part of Clementine.
 
    Copyright 2010, David Sansome <me@davidsansome.com>
+   Copyright 2026, Triala Boomdeay <bradfordspencer03@gmail.com>
 
    Clementine is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +40,8 @@
 #include "covers/albumcoverloader.h"
 #include "covers/currentartloader.h"
 #include "library/librarybackend.h"
+#include "playlist/playlist.h"
+#include "playlist/playlistmanager.h"
 #include "ui/albumcovermanager.h"
 #include "ui/albumcoversearcher.h"
 #include "ui/coverfromurldialog.h"
@@ -309,14 +312,33 @@ void AlbumCoverChoiceController::AlbumCoverFetched(
 }
 
 void AlbumCoverChoiceController::SaveCover(Song* song, const QString& cover) {
-  if (song->is_valid() && song->id() != -1) {
-    song->set_art_manual(cover);
+  if (!song || !song->is_valid()) return;
+
+  song->set_art_manual(cover);
+
+  bool current_stream_updated = false;
+
+  if (song->id() != -1) {
     app_->library_backend()->UpdateManualAlbumArtAsync(
         song->artist(), song->albumartist(), song->album(), cover);
+  } else if (song->is_stream()) {
+    Playlist* playlist = app_->playlist_manager()->active();
+    if (!playlist || !playlist->SetStreamArt(*song)) return;
+    current_stream_updated = true;
+  } else {
+    return;
+  }
 
-    if (song->url() == app_->current_art_loader()->last_song().url()) {
-      app_->current_art_loader()->LoadArt(*song);
-    }
+  const Song& current = app_->current_art_loader()->last_song();
+
+  const bool same_current_track =
+      song->url() == current.url() &&
+      song->artist() == current.artist() &&
+      song->title() == current.title() &&
+      song->album() == current.album();
+
+  if (current_stream_updated || same_current_track) {
+    app_->current_art_loader()->LoadArt(*song);
   }
 }
 

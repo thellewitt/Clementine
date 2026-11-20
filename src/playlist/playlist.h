@@ -210,6 +210,7 @@ class Playlist : public QAbstractListModel {
   }
 
   PlaylistItemPtr current_item() const;
+  bool SetStreamArt(const Song& song);
 
   PlaylistItem::Options current_item_options() const;
   Song current_item_metadata() const;
